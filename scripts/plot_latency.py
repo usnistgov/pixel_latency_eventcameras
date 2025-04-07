@@ -41,6 +41,7 @@ import os
 # ./plot_latency.py ./no_backlight -m lib -r 640_350_10_10
 
 # ./plot_latency.py ./irr0_readout_backlight -m mul --polarity 1
+# ./plot_latency.py file1,file2,... -m mul --polarity 1 --logX --logY -std
 
 # ./plot_latency.py ./lens -m map -W 3 -H 3 -M 1000
 
@@ -533,28 +534,53 @@ def plot_map_roi(latency_directory: str, width: int, height: int, vmax: int,
         plt.show()
 
 
-def plot_multipixel_latency(latency_directory: str, polarity: int):
-    latency_dir = Path(latency_directory)
-    result = {}
+def plot_multipixel_latency(latency_directory: str, polarity: int,
+                            stddev: bool, logX: bool = False,
+                            logY: bool = False):
+    latency_directories = latency_directory.split(",")
+    results = dict()
 
-    for size in MULTI_PIXEL_LATENCY_FILES.keys():
-        dir = Path(MULTI_PIXEL_LATENCY_FILES[size])
-        # this code works for ROI size variation but not for irradiance variation
-        sub_dir = str(dir)[4:] # remove roi_
-        sub_dir = sub_dir.replace("x","_") # replace WxH with W_H values
-        print("DEBUG: sub_dir=", sub_dir)
-        latency_file = os.path.join(latency_dir,dir,sub_dir,"latency.txt")
-        #latency_file = latency_dir / dir / "latency.txt"
-        print("DEBUG: latency_dir=", latency_dir, ", dir=", dir,
-              ", latency_file=", latency_file)
-        result[int(size)] = parse_latency_file(latency_file)
+    for cam_idx, latency_dir in enumerate(latency_directories):
+        result = {}
 
-    values = [latency[polarity][0] for latency in result.values()]
-    std = [latency[polarity][1] for latency in result.values()]
-    plt.errorbar(result.keys(), values, std)
+        with open(Path(latency_dir) / "config.json") as config_file:
+            config = json.load(config_file)
+            MULTI_PIXEL_LATENCY_FILES = config["multi_pixel_latency_files"]
+
+        for size in MULTI_PIXEL_LATENCY_FILES.keys():
+            dir = Path(MULTI_PIXEL_LATENCY_FILES[size])
+            # this code works for ROI size variation but not for irradiance variation
+            sub_dir = str(dir)[4:]  # remove roi_
+            sub_dir = sub_dir.replace("x", "_")  # replace WxH with W_H values
+            print("DEBUG: sub_dir=", sub_dir)
+            latency_file = os.path.join(latency_dir, dir, sub_dir, "latency.txt")
+            print("DEBUG: latency_dir=", latency_dir, ", dir=", dir, ", latency_file=", latency_file)
+            result[int(size)] = parse_latency_file(latency_file)
+
+        results[f"cam {cam_idx}"] = result
+
+    for cam in results.keys():
+        result = results[cam]
+        values = [latency[polarity][0] for latency in result.values()]
+        # coef = np.polyfit(list(result.keys()), values, 1)
+        # poly1d = np.poly1d(coef)
+        std = [latency[polarity][1] for latency in result.values()]
+        print(values)
+        if stddev:
+            plt.errorbar(result.keys(), values, std, label=cam)
+        else:
+            x = list(result.keys())
+            # plt.plot(x, values, x, poly1d(x), '--', label=cam)
+            plt.plot(x, values, label=cam)
+
     plt.ylabel("latency (us)")
     plt.xlabel("nb pixels")
+    plt.legend()
     plt.title("Latency over ROI sizes")
+    if logX:
+        plt.xscale("log")
+    if logY:
+        plt.yscale("log")
     if OUTPUT_FLAG:
         figure = plt.gcf()  # get current figure
         figure.set_size_inches(8, 6)
@@ -637,15 +663,17 @@ def parse_args():
                         "--stddev",
                         action="store_true",
                         help="plot the standard deviation using errorbars")
+    parser.add_argument("-logX", "--logX", action="store_true",
+                        help="use log scale")
+    parser.add_argument("-logY", "--logY", action="store_true",
+                        help="use log scale")
     parser.add_argument("-P", "--polarity", default=1)
     parser.add_argument("-W", "--width", default=3)
     parser.add_argument("-H", "--height", default=3)
     parser.add_argument("-M", "--vmax", default=1000)
     parser.add_argument("-V", "--varidx", default=0)
     parser.add_argument("-O", "--output", action='store_true', required=False)
-    parser.add_argument("-OFile",
-                        "--outFile",
-                        default="./test.png",
+    parser.add_argument("-OFile", "--outFile", default="./test.png",
                         required=False)
 
     return parser.parse_args()
@@ -660,9 +688,9 @@ def main():
     global IRRADIANCE_CONFIGS
     global MULTI_PIXEL_LATENCY_FILES
     global ROI_DIRECTORIES
-
     global OUTPUT_FLAG
     global OUTPUT_FILE
+
     if args.output:
         OUTPUT_FLAG = True
         OUTPUT_FILE = args.outFile
@@ -672,7 +700,7 @@ def main():
         OUTPUT_FILE = "./test.png"
     print("DEBUG: OUTPUT_FLAG= ", OUTPUT_FLAG, ", OUTPUT_FILE=", OUTPUT_FILE)
 
-    with open(Path(args.latency_directory) / "config.json") as config_file:
+    with open(Path(args.latency_directory.split(",")[0]) / "config.json") as config_file:
         config = json.load(config_file)
         BIAS_CONFIGS = config["bias_configs"]
         ROI_DIRECTORIES_NAMES = config["roi_directories_names"]
@@ -694,7 +722,8 @@ def main():
     elif args.mode == "lib":
         plot_latency_irradiance_bias(args.latency_directory, args.stddev)
     elif args.mode == "mul":
-        plot_multipixel_latency(args.latency_directory, int(args.polarity))
+        plot_multipixel_latency(args.latency_directory, int(args.polarity),
+                                args.stddev, args.logX, args.logY)
     elif args.mode == "map":
         plot_map(args.latency_directory, int(args.width), int(args.height),
                  int(args.vmax), int(args.polarity), args.stddev)

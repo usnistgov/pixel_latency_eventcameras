@@ -111,6 +111,9 @@ coefficient, and computes the irradiance for all the filters we use.
 # plot multi pixel latency (cv roi mode)
 ./plot_latency.py output_dir -m mul --polarity 1
 
+# plot multi pixel latency for different cameras/measurements with log scale
+./plot_latency.py dir1,dir2,dir3 -m mul --polarity 1 --logX --logY
+
 # plot latency map:
 # - W is the value of X_ITER (see measure.sh)
 # - H is the value of Y_ITER (see measure.sh)
