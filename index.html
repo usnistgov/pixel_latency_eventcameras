@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<!--
+This software was developed at the National Institute of Standards and
+Technology by employees of the Federal Government in the course of
+their official duties. Pursuant to title 17 Section 105 of the United
+States Code this software is not subject to copyright protection and is
+in the public domain. This software is an experimental system. NIST assumes
+no responsibility whatsoever for its use by other parties, and makes no
+guarantees, expressed or implied, about its quality, reliability, or
+any other characteristic. We would appreciate acknowledgement if the
+software is used.
+-->
+<html><head>
+  <meta http-equiv="content-type" content="text/html; charset=windows-1252">
+  <title>NIST Computational Science in Metrology</title>
+  <link rel="icon" href="https://isg.nist.gov/deepzoomweb/resources/img/favicon.ico;jsessionid=21CE77F2344B143AD8BF5B4A4F06CCA0" type="image/x-icon">
+  <!--<link rel="stylesheet" type="text/css" href="./css/reset.css" media="screen">  -->
+  <link rel="stylesheet" type="text/css" href="css/main_style.css" media="screen">
+  <link rel="stylesheet" type="text/css" href="css/layout.css" media="screen">
+  <!-- <link rel="stylesheet" type="text/css" href="./css/bootstrap.css"> -->
+
+  <script type="text/javascript" language="javascript" src="js/jquery/jquery.min.js"></script>
+  <script type="text/javascript" language="javascript" src="js/site.js"></script>
+
+<style>
+.mytable {
+    display:table;
+	border:10px solid blue;
+    width:50%;
+	cellpadding:4px;
+	cellspacing:3px;
+}
+
+.myrow {
+    display: table-row;
+}
+.mycell {
+    display: table-cell;
+    padding: 1px;
+	border: 1px solid blue;
+	background-color: #cccccc;
+}
+
+.myrow:hover {
+   /* background-color: #BCD2EE;*/ /*#cccccc; */
+}
+.mycell:hover {
+    background-color: #BCD2EE;
+}
+
+.mynewtable a {
+	display: block;
+	text-decoration:none;
+}
+
+table {
+    border-spacing: 0;
+    width: 50%;
+    border: 1px solid #ddd;
+}
+
+th, td {
+    text-align: left;
+    padding: 16px;
+}
+
+tr:nth-child(even) {
+    background-color: #f2f2f2
+}
+</style>
+<style>
+.tooltip {
+    position: relative;
+    display: inline-block;
+    border-bottom: 1px dotted black;
+}
+
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 120px;
+    background-color: black;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px 0;
+
+    /* Position the tooltip */
+    position: absolute;
+    z-index: 1;
+}
+
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+}
+</style>
+
+
+</head>
+<body id="menu2">
+<!-- include to enable Google Analytics 4 support -->
+<script type="text/javascript" language="javascript" src="../csmet/js/gtag_script.js"></script>
+
+<div class="container">
+  <div class="row">
+    <a href="https://www.nist.gov/index.html"><img src="img/bg_header.png" alt="National Institute of Standards and Technology" width="100%"></a>
+
+    <div id="menuContainer">
+      <ul id="menu">
+    	<li><a id="menu1nav" href="https://isg.nist.gov/">Home</a></li>
+
+      </ul>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+<div style="padding-left: 220px;">
+<BR>
+<h1>Event Camera: Latency Evaluations </h1>
+<p>
+More information about the latency evaluations can be found in the paper
+  <BR>
+  R?mi V Chassagnol, Timothy J Blattner, Litorja Maritoni, Peter Bajcsy,
+  "Specifications for Pixel Latency Measurements of Event Cameras" (under review)
+<!--  <a href="../csmet/pages/lytro_camera/lytro_camera.html">here.</a>-->
+</p>
+
+<h2>Select Latency Evaluation Configuration </h2>
+
+
+<table id="myTable" style="overflow-x:auto;">
+<tbody><tr>
+<td>
+<div class="tooltip">Camera ID
+  <span class="tooltiptext">
+    SilkyEvCam HD ID1<img src="img/camera.jpg"> <br>
+    SilkyEvCam HD ID2<img src="img/camera.jpg"> <br>
+    SilkyEvCam VGA ID3<img src="img/camera.jpg">
+    </span>
+</div>
+</td>
+
+  <td>
+    <div class="tooltip">Camera Lens
+      <span class="tooltiptext">
+    with<img src="img/camera.jpg"> <br>
+    without<img src="img/camera.jpg">
+  </span>
+    </div>
+  </td>
+
+  <td>
+<div class="tooltip">Latency Measurement
+  <span class="tooltiptext">
+    Avg<img src="img/map_latency_Var_0_Pol_1_Vmax_1000.png"> <br>
+    StDev<img src="img/map_latency_Var_1_Pol_0_Vmax_100.png"> <br>
+    Min<img src="img/map_latency_Var_2_Pol_1_Vmax_250.png"> <br>
+    Max<img src="img/map_latency_Var_3_Pol_1_Vmax_250.png">  <br>
+    Median<img src="img/map_latency_Var_4_Pol_1_Vmax_500.png">
+  </span>
+</div>
+</td>
+
+  <td>
+    <div class="tooltip">Event Polarity
+      <span class="tooltiptext">
+    0<img src="img/Illum_1_IMG_3105.png"> <br>
+    1<img src="img/Illum_2_IMG_3908.png">
+  </span>
+    </div>
+  </td>
+
+<!--  <td>
+    <div class="tooltip">Latency Threshold [microseconds]
+      <span class="tooltiptext">
+    250<img src="img/Illum_1_IMG_3105.png"> <br>
+    500<img src="img/Illum_2_IMG_3908.png"> <br>
+    1000<img src="img/Illum_2_IMG_3908.png">
+  </span>
+    </div>
+  </td>-->
+
+</tr>
+<tr>
+<td>
+<select name="ConfigCamera" id="CameraID" "="">
+	<option value="">Please select</option>
+	<option value="0" selected="selected">SilkyEvCam HD ID1</option>
+	<option value="1">SilkyEvCam HD ID2</option>
+	<option value="2">SilkyEvCam VGA ID3</option>
+</select>
+ </td>
+
+  <td>
+    <select name="ConfigLens" id="LensID" "="">
+    <option value="">Please select</option>
+    <option value="0" selected="selected">with</option>
+    <option value="1">without</option>
+    </select>
+  </td>
+
+<td>
+<select name="ConfigStats" id="StatsID" "="">
+  <option value="">Please select</option>
+  <!-- map options -->
+  <option value="0" selected="selected">Map average latency [microseconds]</option>
+  <option value="1">Map standard deviation latency [microseconds]</option>
+  <option value="2">Map min latency [microseconds]</option>
+  <option value="3">Map max latency [microseconds]</option>
+  <option value="4">Map median latency [microseconds]</option>
+  <!-- readout options -->
+  <option value="5">Readout latency [microseconds]</option>
+  <!-- ROI options -->
+  <option value="6">Mendian/Min/Max latency per ROI [microseconds]</option>
+  <option value="7">Standard deviation per ROI [microseconds]</option>
+  <option value="8">Number of events per ROI</option>
+  <!-- graphs options -->
+  <option value="9">Average latency per irradiance over the bias [microseconds]</option>
+  <option value="10">Average latency per ROI over the bias [microseconds]</option>
+  <option value="11">Average per bias over the irradiance [microseconds]</option>
+</select>
+</td>
+  <td>
+    <select name="ConfigPolarity" id="PolarityID">
+    <option value="">Please select</option>
+    <option value="0" selected="selected"> 0 (intensity decrease event) </option>
+    <option value="1">1 (intensity increase event)</option>
+    </select>
+  </td>
+
+<!--  <td>
+    <select name="ConfigThresh" id="ThreshID" "="">
+    <option value="">Please select</option>
+    <option value="0" selected="selected">250 [microseconds] </option>
+    <option value="1">500 [microseconds]</option>
+    <option value="2">1000 [microseconds]</option>
+    </select>
+  </td>-->
+
+</tr>
+</tbody></table>
+ <p><input value="submit" onclick="showResults()" type="submit"></p>
+
+<br>
+
+<h4>Aceessible Measurements</h4>
+<p>
+After selecting the configuration inputs above, a user can explore interactively plots
+  and tables with latency measurements in [microseconds]
+  for three event cameras (two models), 5 irradiance values, 7 bias settings, and with or without a lens
+ The event measurements are collected over 5 ms exposure time.
+  Figure 1 shows the measurements accessibble via the web interactive interface.
+</p>
+
+<figure>
+	<img id="retrievedResults" src="img/retrievedResults.png" width="1254" height="703">
+
+  <figcaption> Illustration of the retrieved results </figcaption>
+</figure>
+
+<p>
+The accessible information has been extracted from 2006 latency measurements ~ 1.3 MB (1100 figures).
+  Raw event data were processed using OpenEB library.
+</p>
+<p>
+  The number of latency measurements corresponds to the following variations:
+  <ul>
+    <li>3 event cameras</li>
+    <li>event cameras without and with a lens</li>
+    <li>2 types of events (increasing or decreasing intensity events)</li>
+    <li>5 irradiance values</li>
+    <li>7 bias settings of event cameras</li>
+    <li>9 regions of interest (each 10 x 10 pixels)</li>
+    <li>~5 latency replicate measurements over 5 ms interval per configuration</li>
+  </ul>
+  <BR>
+We report statistics by averaging over 5 replicates per configuration.
+</p>
+
+
+      <h4>Contributors:</h4>
+      <dl>
+        <dt><a href="https://www.nist.gov/itl/">ITL</a>-<a
+                href="https://www.nist.gov/itl/ssd/index.cfm">Software and Systems Division</a>
+        </dt>
+        <dd><a href="https://www.nist.gov/itl/ssd/is/index.cfm">Information Systems Group</a></dd>
+        <dd>
+          <ul>
+            <li><a href="mailto:remi.chassagnol@nist.gov">Remi V. Chassagnol</a></li>
+            <li><a href="mailto:timothy.blattner@nist.gov">Timothy Blattner</a></li>
+            <li><a href="mailto:peter.bajcsy@nist.gov">Peter Bajcsy</a></li>
+        </ul>
+        </dd>
+
+        <dt><a href="https://www.nist.gov/pml">PML</a>-<a href="https://www.nist.gov/pml/sensor-science/optical-radiation">Optical Radiation Group</a></dt>
+        <dd>
+          <ul>
+            <li><a href="mailto:maritoni.litorja@nist.gov">Maritoni Litorja</a></li>
+          </ul>
+        </dd>
+      </dl>
+
+
+<BR>
+        <h4>Contact:</h4>
+          Peter Bajcsy<br/>
+          <a href="mailto:peter.bajcsy@nist.gov">peter.bajcsy@nist.gov</a><br/>
+          Phone: 301.975.2958
+
+
+</div>
+
+<!-- Footer Starts-->
+<div class="container">
+  <div class="row footer">
+    <div class="col-xs-12">
+      <p>
+        The National Institute of Standards and Technology (NIST) is
+        an agency of the
+        <a href="https://commerce.gov">U.S. Department of Commerce</a>.
+      </p>
+
+      <p>
+        <a href="https://nist.gov/public_affairs/privacy.cfm">
+          Privacy policy / security notice / accessibility statement</a>
+        /
+        <a href="https://nist.gov/public_affairs/disclaimer.cfm">
+          Disclaimer</a>
+        /
+        <a href="https://nist.gov/director/foia/">
+          Freedom of Information Act (FOIA)</a>
+        /
+        <a href="https://nist.gov/director/civil/nofearpolicy.cfm">
+          No Fear Act Policy</a>
+        /
+        <a href="https://nist.gov/director/quality_standards.cfm">
+          NIST Information Quality Standards</a>
+        /
+        <a href="https://nist.gov/public_affairs/envpolicy.cfm">
+          Environmental Policy Statement</a>
+      </p>
+
+    </div>
+  </div>
+  <br>
+  <div class="row">
+    <div class="col-xs-12"><strong>Date created:</strong> March 24, 2025 | <strong>Last
+      updated:</strong>
+      <script type="text/javascript">
+        if(document.lastModified != 'undefined') { document.write(format_date_mmmddyy(document.lastModified)); }
+      </script>
+    </div>
+  </div>
+</div>
+<!-- Footer Ends-->
+
+<script>
+  function showTargetImg(paramName){
+    console.log("paramName=" + paramName);
+    window.location.href = 'index_viewFigures.html' + '#' + paramName;
+    console.log("index_viewFigures.html " + '#' + paramName);
+  }
+
+  function showResults(){
+    var cameraVal = document.getElementById('CameraID').value;
+    var lensVal = document.getElementById('LensID').value;
+    var statsVal = document.getElementById('StatsID').value;
+    var polarityVal = document.getElementById('PolarityID').value;
+
+    if (cameraVal !== '' && statsVal !== ''  && lensVal !== '' && polarityVal !== ''){
+      var paramName =
+        `Camera_${cameraVal}_Lens_${lensVal}_Var_${statsVal}_Pol_${polarityVal}`;
+      showTargetImg(paramName)
+    }
+    console.log("index.html: PLEASE, MAKE THE SELECTION FROM THE DROP-DOWN MENU");
+  }
+</script>
+
+</body></html>
