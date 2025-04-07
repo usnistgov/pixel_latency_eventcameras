@@ -1,0 +1,6 @@
+[submodule "lib/argparse"]
+	path = lib/argparse
+	url = https://github.com/p-ranav/argparse.git
+[submodule "lib/log.h"]
+	path = lib/log.h
+	url = https://github.com/drfailer/log.h.git
