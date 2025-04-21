@@ -20,6 +20,7 @@
 
 import argparse
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 from pathlib import Path
 import json
@@ -525,6 +526,16 @@ def plot_map_roi(latency_directory: str, width: int, height: int, vmax: int,
         fig.suptitle("Number of 0 events per ROI")
     elif varidx == 6:
         fig.suptitle("Number of 1 events per ROI")
+
+
+    value_min = np.min(latencies)
+    value_max = np.max(latencies)
+    print("DEBUG: value_min:", value_min, " value_max:", value_max)
+    norm = mpl.colors.Normalize(vmin=value_min, vmax=vmax)
+    cmap = plt.cm.viridis #plt.cm.RdBu
+    # cax=plt.axes: the meaning of the numbers
+    # 0.85 (left to right), 0.1 (top to bottom), 0.075 (width/thickness), 0.8 (height)
+    fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap),cax=plt.axes([0.916, 0.114, 0.02, 0.762])).set_label('Color Map')
 
     if OUTPUT_FLAG:
         figure = plt.gcf()  # get current figure
