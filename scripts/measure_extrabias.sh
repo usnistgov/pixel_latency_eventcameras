@@ -18,6 +18,7 @@
 # damage to property. The software developed by NIST employees is not subject to copyright protection within the
 # United States.
 
+set -euo pipefail
 
 ################################################################################
 #                                configuration                                 #
@@ -38,17 +39,19 @@ X_ITER=3    # number of ROIs on X
 Y_ITER=3    # number of ROIs on Y
 
 # Configurations that will be ran:
-BIAS_CONFIGS=("0.75MIN" "0.50MIN" "0.25MIN" "0" "0.25MAX" "0.50MAX" "0.75MAX")
+# BIAS_CONFIGS=("0.75MIN" "0.50MIN" "0.25MIN" "0" "0.25MAX" "0.50MAX" "0.75MAX")
+BIAS_CONFIGS=("0.75MIN_FO" "0.50MIN_FO" "0.25MIN_FO" "0_FO" "0.25MAX_FO" "0.50MAX_FO" "0.75MAX_FO")
+# BIAS_CONFIGS=("0.75MIN_HPF" "0.50MIN_HPF" "0.25MIN_HPF" "0_HPF" "0.25MAX_HPF" "0.50MAX_HPF" "0.75MAX_HPF")
 ROI_CONFIGS=("32" "64" "128" "256" "420")
 
 # the biases are defined for each sensor at
-# https://docs.prophesee.ai/stable/hw/manuals/biases.html 
+# https://docs.prophesee.ai/stable/hw/manuals/biases.html
 
 # do not change this 2 variables
 declare -a IRRADIANCES=() # leave empty
 OUTPUT_DIRECTORY="out"
 
-if [ "${CAMERA_MODEL}" = "SilkyEvCamHD" ]; then
+if [[ $CAMERA_MODEL == "SilkyEvCamHD" ]]; then
 	# image dim: 1280 (H) x 720 (W)
 	X_START=630 # X coordinate of the first ROI
 	Y_START=350 # Y coordinate of the first ROI
@@ -60,52 +63,6 @@ if [ "${CAMERA_MODEL}" = "SilkyEvCamHD" ]; then
 	BIAS_FO=0 # in [-35,55]
 	BIAS_HPF=0 # in [0, 120]
 	BIAS_REFR=0
-
-	# SilkyEvCam HD, IMX646
-	# min --> BIAS_DIFF_OFF=-35 and BIAS_DIFF_ON=-85
-	# max --> BIAS_DIFF_OFF=190 and BIAS_DIFF_ON=140
-
-	bias_config() {
-	    case "$1" in
-		"0.75MIN")
-		    BIAS_FO=-26
-		    BIAS_HPF= 15
-		    ;;
-		"0.50MIN")
-		    BIAS_FO=-17
-		    BIAS_HPF= 30
-		    ;;
-		"0.25MIN")
-		    BIAS_FO=-9
-		    BIAS_HPF= 45
-		    ;;
-		"0")
-		    BIAS_FO=0
-		    BIAS_HPF= 60
-		    ;;
-		"0.25MAX")
-		    BIAS_FO=14
-		    BIAS_HPF= 75
-		    ;;
-		"0.50MAX")
-		    BIAS_FO=28
-		    BIAS_HPF= 90
-		    ;;
-		"0.75MAX")
-		    BIAS_FO=42
-		    BIAS_HPF= 105
-		    ;;
-	    esac
-	}
-	roi_config() {
-	    case "$1" in
-		"32") X_START=420; Y_START=170; WINDOW_WIDTH=32; WINDOW_HEIGHT=32 ;;
-		"64") X_START=420; Y_START=170; WINDOW_WIDTH=64; WINDOW_HEIGHT=64 ;;
-		"128") X_START=420; Y_START=170; WINDOW_WIDTH=128; WINDOW_HEIGHT=128 ;;
-		"256") X_START=420; Y_START=170; WINDOW_WIDTH=256; WINDOW_HEIGHT=256 ;;
-		"420") X_START=420; Y_START=170; WINDOW_WIDTH=420; WINDOW_HEIGHT=420 ;;
-	    esac
-	}
 else
 	echo "setting parameters for the camera model "${CAMERA_MODEL}
 	# image dim: 640 (H) x 480 (W)
@@ -133,54 +90,105 @@ else
 	# [HAL][WARNING] Current bias_diff_off maximal value is 234
         # [HAL][WARNING] Current bias_diff_on minimal value is 374
 
-	bias_config() {
-	    case "$1" in
-		"0.75MIN")
-	            echo "BIAS_FO "${BIAS_FO}
-		    echo "BIAS_HPF "${BIAS_HPF}
-		    BIAS_FO=$((${BIAS_FO} - 170))
-		    BIAS_HPF=$((${BIAS_HPF} - 441))
-		    echo "0.75MIN "${BIAS_FO}
-		    echo "0.75MIN "${BIAS_HPF}
-		    ;;
-		"0.50MIN")
-		    BIAS_FO=$((${BIAS_FO} - 114))
-		    BIAS_HPF=$((${BIAS_HPF} - 294 ))
-		    ;;
-		"0.25MIN")
-		    BIAS_FO=$((${BIAS_FO} - 57))
-		    BIAS_HPF=$((${BIAS_HPF} - 147 ))
-		    ;;
-		"0")
-		    BIAS_FO=$((${BIAS_FO}))
-		    BIAS_HPF=$((${BIAS_HPF}))
-		    ;;
-		"0.25MAX")
-		    BIAS_FO=$((${BIAS_FO} + 81))
-		    BIAS_HPF=$((${BIAS_HPF} - 78))
-		    ;;
-		"0.50MAX")
-		    BIAS_FO=$((${BIAS_FO} - 162))
-		    BIAS_HPF=$((${BIAS_HPF} - 156))
-		    ;;
-		"0.75MAX")
-		    BIAS_FO=$((${BIAS_FO} - 242))
-		    BIAS_HPF=$((${BIAS_HPF} - 234))
-		    ;;
-	    esac
-	}
-
-	roi_config() {
-	    case "$1" in
-		"32") X_START=210; Y_START=50; WINDOW_WIDTH=32; WINDOW_HEIGHT=32 ;;
-		"64") X_START=210; Y_START=50; WINDOW_WIDTH=64; WINDOW_HEIGHT=64 ;;
-		"128") X_START=210; Y_START=50; WINDOW_WIDTH=128; WINDOW_HEIGHT=128 ;;
-		"256") X_START=210; Y_START=50; WINDOW_WIDTH=256; WINDOW_HEIGHT=256 ;;
-		"420") X_START=210; Y_START=50; WINDOW_WIDTH=420; WINDOW_HEIGHT=420 ;;
-	    esac
-	}
+	# SilkyEvCam HD, IMX646
+	# min --> BIAS_DIFF_OFF=-35 and BIAS_DIFF_ON=-85
+	# max --> BIAS_DIFF_OFF=190 and BIAS_DIFF_ON=140
 fi
 
+bias_config_hd() {
+    echo "bias config HD: $1"
+    case "$1" in
+    "0.75MIN") BIAS_FO=-26; BIAS_HPF=15 ;;
+    "0.50MIN") BIAS_FO=-17; BIAS_HPF=30 ;;
+    "0.25MIN") BIAS_FO=-9; BIAS_HPF=45 ;;
+    "0")       BIAS_FO=0; BIAS_HPF=60 ;;
+    "0.25MAX") BIAS_FO=14; BIAS_HPF=75 ;;
+    "0.50MAX") BIAS_FO=28; BIAS_HPF=90 ;;
+    "0.75MAX") BIAS_FO=42; BIAS_HPF=105 ;;
+
+    "0.75MIN_FO") BIAS_FO=-26; BIAS_HPF=0;;
+    "0.50MIN_FO") BIAS_FO=-17; BIAS_HPF=0;;
+    "0.25MIN_FO") BIAS_FO=-9; BIAS_HPF=0;;
+    "0_FO")       BIAS_FO=0; BIAS_HPF=0;;
+    "0.25MAX_FO") BIAS_FO=14; BIAS_HPF=0;;
+    "0.50MAX_FO") BIAS_FO=28; BIAS_HPF=0;;
+    "0.75MAX_FO") BIAS_FO=42; BIAS_HPF=0;;
+
+    "0.75MIN_HPF") BIAS_FO=0; BIAS_HPF=15 ;;
+    "0.50MIN_HPF") BIAS_FO=0; BIAS_HPF=30 ;;
+    "0.25MIN_HPF") BIAS_FO=0; BIAS_HPF=45 ;;
+    "0_HPF")       BIAS_FO=0; BIAS_HPF=60 ;;
+    "0.25MAX_HPF") BIAS_FO=0; BIAS_HPF=75 ;;
+    "0.50MAX_HPF") BIAS_FO=0; BIAS_HPF=90 ;;
+    "0.75MAX_HPF") BIAS_FO=0; BIAS_HPF=105 ;;
+    esac
+    echo $BIAS_FO
+    echo $BIAS_HPF
+}
+roi_config_hd() {
+    case "$1" in
+    "32") X_START=420; Y_START=170; WINDOW_WIDTH=32; WINDOW_HEIGHT=32 ;;
+    "64") X_START=420; Y_START=170; WINDOW_WIDTH=64; WINDOW_HEIGHT=64 ;;
+    "128") X_START=420; Y_START=170; WINDOW_WIDTH=128; WINDOW_HEIGHT=128 ;;
+    "256") X_START=420; Y_START=170; WINDOW_WIDTH=256; WINDOW_HEIGHT=256 ;;
+    "420") X_START=420; Y_START=170; WINDOW_WIDTH=420; WINDOW_HEIGHT=420 ;;
+    esac
+}
+
+bias_config_vga() {
+    case "$1" in
+    "0.75MIN") BIAS_FO=$((${BIAS_FO} - 170)); BIAS_HPF=$((${BIAS_HPF} - 441)) ;;
+    "0.50MIN") BIAS_FO=$((${BIAS_FO} - 114)); BIAS_HPF=$((${BIAS_HPF} - 294 )) ;;
+    "0.25MIN") BIAS_FO=$((${BIAS_FO} - 57)); BIAS_HPF=$((${BIAS_HPF} - 147 )) ;;
+    "0") BIAS_FO=$((${BIAS_FO})); BIAS_HPF=$((${BIAS_HPF})) ;;
+    "0.25MAX") BIAS_FO=$((${BIAS_FO} + 81)); BIAS_HPF=$((${BIAS_HPF} - 78)) ;;
+    "0.50MAX") BIAS_FO=$((${BIAS_FO} - 162)); BIAS_HPF=$((${BIAS_HPF} - 156)) ;;
+    "0.75MAX") BIAS_FO=$((${BIAS_FO} - 242)); BIAS_HPF=$((${BIAS_HPF} - 234)) ;;
+
+    "0.75MIN_FO") BIAS_FO=$((${BIAS_FO} - 170)); BIAS_HPF=0 ;;
+    "0.50MIN_FO") BIAS_FO=$((${BIAS_FO} - 114)); BIAS_HPF=0 ;;
+    "0.25MIN_FO") BIAS_FO=$((${BIAS_FO} - 57)); BIAS_HPF=0 ;;
+    "0_FO") BIAS_FO=$((${BIAS_FO})); BIAS_HPF=0 ;;
+    "0.25MAX_FO") BIAS_FO=$((${BIAS_FO} + 81)); BIAS_HPF=0 ;;
+    "0.50MAX_FO") BIAS_FO=$((${BIAS_FO} - 162)); BIAS_HPF=0 ;;
+    "0.75MAX_FO") BIAS_FO=$((${BIAS_FO} - 242)); BIAS_HPF=0 ;;
+
+    "0.75MIN_HPF") BIAS_FO=0; BIAS_HPF=$((${BIAS_HPF} - 441)) ;;
+    "0.50MIN_HPF") BIAS_FO=0; BIAS_HPF=$((${BIAS_HPF} - 294 )) ;;
+    "0.25MIN_HPF") BIAS_FO=0; BIAS_HPF=$((${BIAS_HPF} - 147 )) ;;
+    "0_HPF") BIAS_FO=0; BIAS_HPF=$((${BIAS_HPF})) ;;
+    "0.25MAX_HPF") BIAS_FO=0; BIAS_HPF=$((${BIAS_HPF} - 78)) ;;
+    "0.50MAX_HPF") BIAS_FO=0; BIAS_HPF=$((${BIAS_HPF} - 156)) ;;
+    "0.75MAX_HPF") BIAS_FO=0; BIAS_HPF=$((${BIAS_HPF} - 234)) ;;
+    esac
+}
+
+roi_config_vga() {
+    case "$1" in
+    "32") X_START=210; Y_START=50; WINDOW_WIDTH=32; WINDOW_HEIGHT=32 ;;
+    "64") X_START=210; Y_START=50; WINDOW_WIDTH=64; WINDOW_HEIGHT=64 ;;
+    "128") X_START=210; Y_START=50; WINDOW_WIDTH=128; WINDOW_HEIGHT=128 ;;
+    "256") X_START=210; Y_START=50; WINDOW_WIDTH=256; WINDOW_HEIGHT=256 ;;
+    "420") X_START=210; Y_START=50; WINDOW_WIDTH=420; WINDOW_HEIGHT=420 ;;
+    esac
+}
+
+bias_config() {
+    echo "bias config $1"
+    if [[ $CAMERA_MODEL == "SilkyEvCamHD" ]]; then
+        bias_config_hd $1
+    else
+        bias_config_vga $1
+    fi
+}
+
+roi_config() {
+    if [[ $CAMERA_MODEL == "SilkyEvCamHD" ]]; then
+        roi_config_hd $1
+    else
+        roi_config_vga $1
+    fi
+}
 
 
 ################################################################################
@@ -264,6 +272,9 @@ measure_latency() {
     echo $X_START $X_END
     echo $Y_START $Y_END
     echo $SUB_DIRECTORY
+    echo "config: $1"
+    echo "fo: $BIAS_FO"
+    echo "hpf: $BIAS_HPF"
 
     for ((y=$Y_START; y<$Y_END; y+=$WINDOW_HEIGHT)); do
         for ((x=$X_START; x<$X_END; x+=$WINDOW_WIDTH)); do
