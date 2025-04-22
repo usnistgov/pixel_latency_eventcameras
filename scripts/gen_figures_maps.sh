@@ -23,8 +23,8 @@
 ################################################################################
 
 PLOT_LATENCY_PROGRAM=./plot_latency.py
-INPUT_DIR=/home/pnb/PeterB/event_camera_latency_program/scripts/CAM3_nolens
-OUTPUT_DIR=/home/pnb/PeterB/event_camera_latency_program/scripts/figures_CAM3_nolens_maps
+INPUT_DIR=$1
+OUTPUT_DIR=${INPUT_DIR}_result
 
 mkdir -p $OUTPUT_DIR
 

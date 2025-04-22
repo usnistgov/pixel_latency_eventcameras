@@ -28,8 +28,8 @@ CAMERA_MODEL="SilkyEvCamHD"
 echo "running experiment with camera model "${CAMERA_MODEL}
 
 PLOT_LATENCY_PROGRAM=./plot_latency.py
-INPUT_DIR=/home/pnb/PeterB/event_camera_latency_program/scripts/CAM1_nolens
-OUTPUT_DIR=/home/pnb/PeterB/event_camera_latency_program/scripts/figures_CAM1_nolens
+INPUT_DIR=$1
+OUTPUT_DIR=${INPUT_DIR}_result
 
 
 mkdir -p $OUTPUT_DIR
