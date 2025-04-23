@@ -24,7 +24,7 @@
 
 PLOT_LATENCY_PROGRAM=./plot_latency.py
 INPUT_DIR=$1
-OUTPUT_DIR=${INPUT_DIR}_map_result
+OUTPUT_DIR=${INPUT_DIR}_maps_result
 
 mkdir -p $OUTPUT_DIR
 

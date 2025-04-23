@@ -22,9 +22,9 @@
 #                     script to generate multiple figures                      #
 ################################################################################
 
-PLOT_LATENCY_PROGRAM=./plot_size_ROI_latency.py
+PLOT_LATENCY_PROGRAM=./plot_latency.py
 INPUT_DIR=$1
-OUTPUT_DIR=${INPUT_DIR}_result
+OUTPUT_DIR=${INPUT_DIR}_size_roi_result
 
 mkdir -p $OUTPUT_DIR
 ###########################################
