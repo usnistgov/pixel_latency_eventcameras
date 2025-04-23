@@ -6,7 +6,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 set(CMAKE_VERBOSE_MAKEFILE TRUE)
 set(CMAKE_BUILD_TYPE Release) # warn: temporary
 
-add_compile_options(-Wall -Wextra)
+add_compile_options(-Wall -Wextra -O3)
 
 find_package(MetavisionSDK COMPONENTS core driver ui analytics REQUIRED)
 
