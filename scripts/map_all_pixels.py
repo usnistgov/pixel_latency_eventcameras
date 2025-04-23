@@ -29,6 +29,7 @@ def parse_args():
     parser.add_argument("output_directory")
     parser.add_argument("-W", type=int, default=1280)
     parser.add_argument("-H", type=int, default=720)
+    parser.add_argument("-k", type=int, default=1)
     parser.add_argument("--vmax", type=int)
     return parser.parse_args()
 
@@ -40,17 +41,18 @@ def main():
 
     triggers0, triggers1 = get_triggers(triggers_filename)
     events0, events1 = get_envents(positions_filename)
-    plot_map(triggers0, triggers1, events0, events1, args.W, args.H, args.vmax)
+    plot_map(triggers0, triggers1, events0, events1, args.W, args.H, args.vmax,
+             args.k)
 
 
 def plot_map(triggers0: list, triggers1: list, events0: dict, events1: dict,
-             width: int, height: int, vmax: int):
+             width: int, height: int, vmax: int, k: int):
     nb_rows = 2
     nb_cols = max(len(triggers0), len(triggers1))
-    fig, ax = plt.subplots(nb_rows, nb_cols + 1, squeeze=False)
+    fig, ax = plt.subplots(nb_rows, nb_cols + 2, squeeze=False)
 
-    plot_map_polarity(ax, nb_cols, triggers0, events0, 0, width, height, vmax)
-    plot_map_polarity(ax, nb_cols, triggers1, events1, 1, width, height, vmax)
+    plot_map_polarity(ax, nb_cols, triggers0, events0, 0, width, height, vmax, k)
+    plot_map_polarity(ax, nb_cols, triggers1, events1, 1, width, height, vmax, k)
 
     ax[0, 0].set_ylabel("polarity 0")
     ax[1, 0].set_ylabel("polarity 1")
@@ -67,12 +69,14 @@ def plot_map(triggers0: list, triggers1: list, events0: dict, events1: dict,
     # plt.savefig(OUTPUT_FILE, dpi=100)
 
 
-def plot_map_polarity(ax: object, nb_cols: int, triggers: dict, events:
-                      dict, polarity: int, width: int, height: int, vmax: int):
+def plot_map_polarity(ax: object, nb_cols: int, triggers: dict, events: dict,
+                      polarity: int, width: int, height: int, vmax: int,
+                      k: int):
     DEFAULT_PX_VAL=-1
-    total = np.zeros((height, width))
+    images = []
     nb_triggers = len(triggers)
-    # fill the triggers with the max to get the correct number of figures
+    # fill the triggers with the max to get the correct number of figures + the
+    # end of the timeline
     triggers += [max(events.keys()) for _ in range(nb_cols - nb_triggers + 1)]
 
     for trigger_idx in range(len(triggers) - 1):
@@ -81,19 +85,34 @@ def plot_map_polarity(ax: object, nb_cols: int, triggers: dict, events:
         pixels = np.full((height, width), DEFAULT_PX_VAL)
 
         for t in range(start_timestamp, end_timestamp):
+            if t not in events:
+                continue
             delay = t - start_timestamp
-            if t in events:
-                for x, y in events[t]:
-                    if pixels[y, x] == DEFAULT_PX_VAL:
-                        pixels[y, x] = delay
+            for x, y in events[t]:
+                if pixels[y, x] == DEFAULT_PX_VAL:
+                    pixels[y, x] = delay
 
         ax[polarity, trigger_idx].imshow(pixels, vmin=0, vmax=vmax)
         ax[polarity, trigger_idx].set_xlabel(f"trigger {trigger_idx}")
-        total += pixels ** 2
+        images.append(pixels)
 
     nb_images = len(triggers) - 1
-    ax[polarity, nb_cols].imshow(np.sqrt(total) / nb_images, vmin=0, vmax=vmax)
-    ax[polarity, nb_cols].set_xlabel("total")
+    crazy_pixels_map = np.zeros((height, width))
+    dead_pixels_map = np.zeros((height, width))
+
+    for i in range(height):
+        for j in range(width):
+            latencies = [images[img_idx][i, j] for img_idx in range(nb_images)]
+            avg_latency = np.mean(latencies) + k*np.std(latencies)
+            crazy_pixels_map[i, j] = vmax if avg_latency > vmax else 0
+            if avg_latency == DEFAULT_PX_VAL:
+                print(f"dead pixel at (row = {i}, col = {j}).")
+                dead_pixels_map[i, j] = vmax
+
+    ax[polarity, nb_cols].imshow(crazy_pixels_map, vmin=0, vmax=vmax)
+    ax[polarity, nb_cols].set_xlabel("crazy pixels")
+    ax[polarity, nb_cols + 1].imshow(dead_pixels_map, vmin=0, vmax=vmax)
+    ax[polarity, nb_cols + 1].set_xlabel("dead pixels")
 
 
 def get_triggers(filename: str):
