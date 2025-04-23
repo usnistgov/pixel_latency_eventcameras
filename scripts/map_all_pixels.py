@@ -27,6 +27,9 @@ import argparse
 def parse_args():
     parser = argparse.ArgumentParser("plot")
     parser.add_argument("output_directory")
+    parser.add_argument("-W", type=int, default=1280)
+    parser.add_argument("-H", type=int, default=720)
+    parser.add_argument("--vmax", type=int)
     return parser.parse_args()
 
 
@@ -37,17 +40,17 @@ def main():
 
     triggers0, triggers1 = get_triggers(triggers_filename)
     events0, events1 = get_envents(positions_filename)
-    plot_map(triggers0, triggers1, events0, events1, 1280, 720, 1000)
+    plot_map(triggers0, triggers1, events0, events1, args.W, args.H, args.vmax)
 
 
 def plot_map(triggers0: list, triggers1: list, events0: dict, events1: dict,
              width: int, height: int, vmax: int):
     nb_rows = 2
     nb_cols = max(len(triggers0), len(triggers1))
-    fig, ax = plt.subplots(nb_rows, nb_cols, squeeze=False)
+    fig, ax = plt.subplots(nb_rows, nb_cols + 1, squeeze=False)
 
-    plot_map_polarity(ax, triggers0, events0, 0, width, height, vmax)
-    plot_map_polarity(ax, triggers1, events1, 1, width, height, vmax)
+    plot_map_polarity(ax, nb_cols, triggers0, events0, 0, width, height, vmax)
+    plot_map_polarity(ax, nb_cols, triggers1, events1, 1, width, height, vmax)
 
     ax[0, 0].set_ylabel("polarity 0")
     ax[1, 0].set_ylabel("polarity 1")
@@ -64,9 +67,14 @@ def plot_map(triggers0: list, triggers1: list, events0: dict, events1: dict,
     # plt.savefig(OUTPUT_FILE, dpi=100)
 
 
-def plot_map_polarity(ax, triggers, events, polarity, width, height, vmax):
+def plot_map_polarity(ax: object, nb_cols: int, triggers: dict, events:
+                      dict, polarity: int, width: int, height: int, vmax: int):
     DEFAULT_PX_VAL=-1
-    triggers.append(max(events.keys()))
+    total = np.zeros((height, width))
+    nb_triggers = len(triggers)
+    # fill the triggers with the max to get the correct number of figures
+    triggers += [max(events.keys()) for _ in range(nb_cols - nb_triggers + 1)]
+
     for trigger_idx in range(len(triggers) - 1):
         start_timestamp = triggers[trigger_idx]
         end_timestamp = triggers[trigger_idx + 1]
@@ -80,6 +88,12 @@ def plot_map_polarity(ax, triggers, events, polarity, width, height, vmax):
                         pixels[y, x] = delay
 
         ax[polarity, trigger_idx].imshow(pixels, vmin=0, vmax=vmax)
+        ax[polarity, trigger_idx].set_xlabel(f"trigger {trigger_idx}")
+        total += pixels ** 2
+
+    nb_images = len(triggers) - 1
+    ax[polarity, nb_cols].imshow(np.sqrt(total) / nb_images, vmin=0, vmax=vmax)
+    ax[polarity, nb_cols].set_xlabel("total")
 
 
 def get_triggers(filename: str):
