@@ -22,9 +22,9 @@
 #                     script to generate multiple figures                      #
 ################################################################################
 
-PLOT_LATENCY_PROGRAM=./plot_latency.py
-INPUT_DIR=/home/pnb/PeterB/event_camera_latency_program/scripts/CAM1_lens1_roi
-OUTPUT_DIR=/home/pnb/PeterB/event_camera_latency_program/scripts/figures_CAM1_lens1_size_roi
+PLOT_LATENCY_PROGRAM=./plot_size_ROI_latency.py
+INPUT_DIR=$1
+OUTPUT_DIR=${INPUT_DIR}_result
 
 mkdir -p $OUTPUT_DIR
 ###########################################

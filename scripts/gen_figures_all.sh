@@ -29,7 +29,7 @@ echo "running experiment with camera model "${CAMERA_MODEL}
 
 PLOT_LATENCY_PROGRAM=./plot_latency.py
 INPUT_DIR=$1
-OUTPUT_DIR=${INPUT_DIR}_result
+OUTPUT_DIR=${INPUT_DIR}_all_result
 
 
 mkdir -p $OUTPUT_DIR
