@@ -139,9 +139,7 @@ create_json_config() {
 ################################################################################
 
 run_latency_program() {
-    echo "$LATENCY_PROGRAM -o "$1" \
-        --dump-latency \
-        --dump-map \
+    $LATENCY_PROGRAM -o "$1" \
         --record-time "$RECORD_TIME" \
         --window-x "$2" --window-y "$3" \
         --window-width "$ROI_WIDTH" \
@@ -152,7 +150,9 @@ run_latency_program() {
         --bias-fo "$BIAS_FO" \
         --bias-hpf "$BIAS_HPF" \
         --bias-refr "$BIAS_REFR" \
-        --slave"
+        --dump-latency \
+        --dump-map \
+        --slave
 }
 
 measure_latency() {
