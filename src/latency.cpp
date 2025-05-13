@@ -154,12 +154,13 @@ void dump_latency_maps(LatencyInfos const &infos, std::string const &filename) {
     std::ofstream fs(filename);
 
     fs << infos.roi.x << " " << infos.roi.y << " " << infos.roi.width << " "
-       << infos.roi.height;
+       << infos.roi.height << std::endl;
 
     for (auto stimulus : infos.stimuli) {
         fs << stimulus.first.polarity;
         for (auto delay : stimulus.second.map) {
             fs << " " << delay;
         }
+        fs << std::endl;
     }
 }
