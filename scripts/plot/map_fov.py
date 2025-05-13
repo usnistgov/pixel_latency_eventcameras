@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+
+# NIST-developed software is provided by NIST as a public service. You may use, copy and distribute copies of the
+# software in any medium, provided that you keep intact this entire notice. You may improve, modify and create
+# derivative works of the software or any portion of the software, and you may copy and distribute such modifications
+# or works. Modified works should carry a notice stating that you changed the software and should note the date and
+# nature of any such change. Please explicitly acknowledge the National Institute of Standards and Technology as the
+# source of the software. NIST-developed software is expressly provided "AS IS." NIST MAKES NO WARRANTY OF ANY KIND,
+# EXPRESS, IMPLIED, IN FACT OR ARISING BY OPERATION OF LAW, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTY OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT AND DATA ACCURACY. NIST NEITHER REPRESENTS NOR
+# WARRANTS THAT THE OPERATION OF THE SOFTWARE WILL BE UNINTERRUPTED OR ERROR-FREE, OR THAT ANY DEFECTS WILL BE
+# CORRECTED. NIST DOES NOT WARRANT OR MAKE ANY REPRESENTATIONS REGARDING THE USE OF THE SOFTWARE OR THE RESULTS
+# THEREOF, INCLUDING BUT NOT LIMITED TO THE CORRECTNESS, ACCURACY, RELIABILITY, OR USEFULNESS OF THE SOFTWARE. You
+# are solely responsible for determining the appropriateness of using and distributing the software and you assume
+# all risks associated with its use, including but not limited to the risks and costs of program errors, compliance
+# with applicable laws, damage to or loss of data, programs or equipment, and the unavailability or interruption of
+# operation. This software is not intended to be used in any situation where a failure could cause risk of injury or
+# damage to property. The software developed by NIST employees is not subject to copyright protection within the
+# United States.
+
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+import numpy as np
+import numpy.typing as npt
+import argparse
+from matplotlib.colors import LinearSegmentedColormap
+
+
+def parse_args():
+    parser = argparse.ArgumentParser("map_fov.py")
+    parser.add_argument("output_directory")
+    parser.add_argument("-o", "--output", default="out.png")
+    parser.add_argument("-k", type=int, default=1)
+    parser.add_argument("--vmax", type=int)
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    map_filename = args.output_directory + "/map.txt"
+    roi_x, roi_y, roi_w, roi_h, maps = parse_map_file(map_filename)
+    plot_map(args.output, maps, roi_x, roi_y, roi_w, roi_h, args.vmax)
+
+
+def create_pixel_map(values: list, width: int, height: int) -> npt.NDArray[int]:
+    pixels = np.zeros((height, width))
+
+    for i in range(height):
+        for j in range(width):
+            pixels[i, j] = int(values[i * width + j])
+
+    return pixels
+
+
+def parse_map_file(filename: str) -> (int, int, int, int, dict):
+    roi_x, roi_y, roi_w, roi_h = 0, 0, 0, 0
+    maps = {0: [], 1: []}
+
+    with open(filename) as file:
+        line = file.readline()
+        fields = line.split(" ")
+        roi_x, roi_y = int(fields[0]), int(fields[1])
+        roi_w, roi_h = int(fields[2]), int(fields[3])
+
+        for line in file:
+            fields = line.split(" ")
+            polarity = int(fields[0])
+            map = create_pixel_map(fields[1:], roi_w, roi_h)
+            maps[polarity].append(map)
+
+    return roi_x, roi_y, roi_w, roi_h, maps
+
+
+def plot_map(output_file: str, maps: dict, roi_x: int, roi_y: int, roi_w: int,
+             roi_h: int, vmax: int):
+    nb_rows = 2
+    nb_cols = max(len(maps[0]), len(maps[1]))
+    fig, ax = plt.subplots(nb_rows, nb_cols + 2, squeeze=False)
+
+    ax[0, 0].set_ylabel("polarity 0")
+    ax[1, 0].set_ylabel("polarity 1")
+    fig.suptitle("Single pixel latency map.")
+
+    def plot_polarity(polarity):
+        print(f"plot polarity {polarity}...")
+        mean = np.zeros((roi_h, roi_w))
+        for idx, map in enumerate(maps[polarity]):
+            mean += map
+            ax[polarity, idx].imshow(map, vmin=0, vmax=vmax)
+
+        mean /= len(maps[0])
+        dead = np.zeros((roi_h, roi_w))
+
+        for i in range(roi_h):
+            for j in range(roi_w):
+                if mean[i, j] == -1:
+                    dead[i, j] = 1
+                    print(f"dead pixel at (row = {i}, col = {j}).")
+
+        colors = [(0, 'white'), (1, 'red')]
+        cmap = LinearSegmentedColormap.from_list('falty_pixels', colors)
+        ax[polarity, nb_cols].imshow(mean, vmax=vmax)
+        ax[polarity, nb_cols].set_xlabel("crazy pixels")
+        ax[polarity, nb_cols + 1].imshow(dead, cmap=cmap)
+        ax[polarity, nb_cols + 1].set_xlabel("dead pixels")
+
+    plot_polarity(0)
+    plot_polarity(1)
+    norm = mpl.colors.Normalize(vmin=0, vmax=vmax)
+    cmap = plt.cm.viridis #plt.cm.RdBu
+    fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
+                 ax=[ax[r, c]
+                      for r in range(nb_rows)
+                      for c in range(nb_cols)]).set_label('Color Map')
+    plt.show()
+    # fig.set_size_inches(8, 6)
+    # plt.savefig(output_file, dpi=100)
+
+
+if __name__ == "__main__":
+    main()
