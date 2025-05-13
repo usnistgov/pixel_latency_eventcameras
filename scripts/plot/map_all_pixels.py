@@ -22,11 +22,13 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 import argparse
+from matplotlib.colors import LinearSegmentedColormap
 
 
 def parse_args():
     parser = argparse.ArgumentParser("plot")
     parser.add_argument("output_directory")
+    parser.add_argument("-o", "--output", default="out.png")
     parser.add_argument("-W", type=int, default=1280)
     parser.add_argument("-H", type=int, default=720)
     parser.add_argument("-k", type=int, default=1)
@@ -42,11 +44,11 @@ def main():
     triggers0, triggers1 = get_triggers(triggers_filename)
     events0, events1 = get_envents(positions_filename)
     plot_map(triggers0, triggers1, events0, events1, args.W, args.H, args.vmax,
-             args.k)
+             args.k, args.output)
 
 
 def plot_map(triggers0: list, triggers1: list, events0: dict, events1: dict,
-             width: int, height: int, vmax: int, k: int):
+             width: int, height: int, vmax: int, k: int, output_file: str):
     nb_rows = 2
     nb_cols = max(len(triggers0), len(triggers1))
     fig, ax = plt.subplots(nb_rows, nb_cols + 2, squeeze=False)
@@ -64,9 +66,9 @@ def plot_map(triggers0: list, triggers1: list, events0: dict, events1: dict,
                  ax=[ax[r, c]
                       for r in range(nb_rows)
                       for c in range(nb_cols)]).set_label('Color Map')
-    plt.show()
-    # fig.set_size_inches(8, 6)
-    # plt.savefig(OUTPUT_FILE, dpi=100)
+    # plt.show()
+    fig.set_size_inches(8, 6)
+    plt.savefig(output_file, dpi=100)
 
 
 def plot_map_polarity(ax: object, nb_cols: int, triggers: dict, events: dict,
@@ -78,6 +80,8 @@ def plot_map_polarity(ax: object, nb_cols: int, triggers: dict, events: dict,
     # fill the triggers with the max to get the correct number of figures + the
     # end of the timeline
     triggers += [max(events.keys()) for _ in range(nb_cols - nb_triggers + 1)]
+
+    print(f"plot polarity {polarity}...")
 
     for trigger_idx in range(len(triggers) - 1):
         start_timestamp = triggers[trigger_idx]
@@ -103,15 +107,21 @@ def plot_map_polarity(ax: object, nb_cols: int, triggers: dict, events: dict,
     for i in range(height):
         for j in range(width):
             latencies = [images[img_idx][i, j] for img_idx in range(nb_images)]
-            avg_latency = np.mean(latencies) + k*np.std(latencies)
-            crazy_pixels_map[i, j] = vmax if avg_latency > vmax else 0
-            if avg_latency == DEFAULT_PX_VAL:
-                print(f"dead pixel at (row = {i}, col = {j}).")
-                dead_pixels_map[i, j] = vmax
+            avg_latency = np.mean(latencies)
+            # crazy_pixels_map[i, j] = 1 if avg_latency > vmax else 0
+            crazy_pixels_map[i, j] = avg_latency
 
-    ax[polarity, nb_cols].imshow(crazy_pixels_map, vmin=0, vmax=vmax)
+            if i == 648 and avg_latency != DEFAULT_PX_VAL:
+                print(f"dead pixel at (row = {i}, col = {j}).")
+                dead_pixels_map[i, j] = 1
+
+    colors = [(0, 'white'), (1, 'red')]
+    cmap = LinearSegmentedColormap.from_list('falty_pixels', colors)
+
+    # ax[polarity, nb_cols].imshow(crazy_pixels_map, cmap=cmap)
+    ax[polarity, nb_cols].imshow(crazy_pixels_map, vmax=vmax)
     ax[polarity, nb_cols].set_xlabel("crazy pixels")
-    ax[polarity, nb_cols + 1].imshow(dead_pixels_map, vmin=0, vmax=vmax)
+    ax[polarity, nb_cols + 1].imshow(dead_pixels_map, cmap=cmap)
     ax[polarity, nb_cols + 1].set_xlabel("dead pixels")
 
 

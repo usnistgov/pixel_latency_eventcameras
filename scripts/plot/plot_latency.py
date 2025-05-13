@@ -474,7 +474,9 @@ def plot_map_roi(latency_directory: str, width: int, height: int, vmax: int,
     dir = Path(latency_directory)
     fig, ax = plt.subplots(len(IRRADIANCE_CONFIGS.keys()),
                            len(BIAS_CONFIGS.keys()),
-                           squeeze=False)
+                           squeeze=False,
+                           sharex=True,
+                           sharey=True)
 
     for irr_idx, irr in enumerate(IRRADIANCE_CONFIGS.keys()):
         for bias_idx, bias in enumerate(BIAS_CONFIGS.keys()):
@@ -705,7 +707,7 @@ def main():
     if args.output:
         OUTPUT_FLAG = True
         OUTPUT_FILE = args.outFile
-        plt.rcParams.update({'font.size': 11})
+        plt.rcParams.update({'font.size': 13})
     else:
         OUTPUT_FLAG = False
         OUTPUT_FILE = "./test.png"
