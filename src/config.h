@@ -27,13 +27,15 @@ class Config {
     Config(int argc, char **argv)
         : parser("Event Camera Latency measurement program") {
         // clang-format off
-        parser.add_argument("-o", "--output").required().help("output directory name");
-        parser.add_argument("--record-time").required().store_into(record_time).help("time to record");
-        parser.add_argument("--window-x").required().store_into(window_x).help("x coordinate of the roi");
-        parser.add_argument("--window-y").required().store_into(window_y).help("y coordinate of the roi");
-        parser.add_argument("--window-width").required().store_into(window_width).help("width of the roi");
-        parser.add_argument("--window-height").required().store_into(window_height).help("height of the roi");
-        parser.add_argument("--slave").flag().store_into(slave).help("put the camera into slave mode");
+        parser.add_argument("-o", "--output").required().store_into(output_directory).help("output directory name.");
+        parser.add_argument("--record-time").required().store_into(record_time).help("time to record.");
+
+        parser.add_argument("--window-x").default_value(0).store_into(window_x).help("x coordinate of the roi.");
+        parser.add_argument("--window-y").default_value(0).store_into(window_y).help("y coordinate of the roi.");
+        parser.add_argument("--window-width").default_value(0).store_into(window_width).help("width of the roi.");
+        parser.add_argument("--window-height").default_value(0).store_into(window_height).help("height of the roi.");
+
+        parser.add_argument("--slave").flag().store_into(slave).help("put the camera into slave mode.");
 
         parser.add_argument("--bias-diff").default_value(0).store_into(bias_diff).help("bias_diff");
         parser.add_argument("--bias-diff-off").default_value(0).store_into(bias_diff_off).help("bias_diff_off");
@@ -41,6 +43,12 @@ class Config {
         parser.add_argument("--bias-fo").default_value(0).store_into(bias_fo).help("bias_fo");
         parser.add_argument("--bias-hpf").default_value(0).store_into(bias_hpf).help("bias_hpf");
         parser.add_argument("--bias-refr").default_value(0).store_into(bias_refr).help("bias_refr");
+
+        parser.add_argument("--dump-latency").flag().store_into(dump_latency).help("dump latency (latency.txt).");
+        parser.add_argument("--dump-map").flag().store_into(dump_map).help("dump per pixel latency (map.txt).");
+        parser.add_argument("--dump-counts").flag().store_into(dump_counts).help("dump event count per timestamp (counts.txt).");
+        parser.add_argument("--dump-position").flag().store_into(dump_positions).help("dump all events positions (warn: can generate a heavy file) (positions.txt).");
+        parser.add_argument("--dump-triggers").flag().store_into(dump_triggers).help("dump triggers (triggers.txt)");
         // clang-format on
 
         parser.parse_args(argc, argv);
@@ -49,38 +57,35 @@ class Config {
 
   private:
     void init() {
-        root_output_directory = parser.get<>("-o");
-
         DBG(window_x);
         DBG(window_y);
         DBG(window_width);
         DBG(window_height);
-
+        DBG(output_directory);
         window = {.x = window_x,
                   .y = window_y,
                   .width = window_width,
                   .height = window_height};
-        output_directory =
-            get_sub_directory_name(root_output_directory, window);
+        if (!dump_latency && !dump_map && !dump_counts && !dump_positions &&
+            !dump_triggers) {
+            dump_latency = true; // default on dump latency
+        }
     }
 
-    std::string get_sub_directory_name(std::string const &root_output_directory,
-                                       Metavision::Roi::Window window) {
-        std::ostringstream oss;
-
-        oss << root_output_directory << "/" << window.x << "_" << window.y
-            << "_" << window.width << "_" << window.height << "/";
-        return oss.str();
-    }
 
   public:
-    size_t record_time;
-    int window_x;
-    int window_y;
-    int window_width;
-    int window_height;
-    bool slave;
-    std::string root_output_directory;
+    size_t record_time = 0;
+    int window_x = 0;
+    int window_y = 0;
+    int window_width = 0;
+    int window_height = 0;
+    bool slave = false;
+
+    bool dump_latency = true;
+    bool dump_map = false;
+    bool dump_counts = false;
+    bool dump_positions = false;
+    bool dump_triggers = false;
 
     int bias_diff = 0;
     int bias_diff_off = 0;

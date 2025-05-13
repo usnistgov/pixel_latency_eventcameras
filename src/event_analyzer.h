@@ -31,7 +31,7 @@ class EventAnalyzer {
     using Event = Metavision::EventCD;
 
   public:
-    EventAnalyzer(size_t record_time, Metavision::Roi::Window window)
+    EventAnalyzer(int64_t record_time, Metavision::Roi::Window window)
         : record_time_(record_time), window_(window) {}
 
   public:
@@ -40,11 +40,7 @@ class EventAnalyzer {
         static std::vector<Point> points1 = {};
         auto it = begin;
 
-        if (curr_timestamp_ == 0) [[unlikely]] {
-            curr_timestamp_ = begin->t;
-        }
-
-        while (it != end && count_ < record_time_) {
+        while (it != end && curr_timestamp_ < record_time_) {
             while (it != end && it->t == curr_timestamp_) {
                 if (it->p == 0) {
                     points0.emplace_back(it->x, it->y);
@@ -58,11 +54,10 @@ class EventAnalyzer {
                 ++curr_timestamp_;
                 points0 = {};
                 points1 = {};
-                ++count_;
             }
         }
 
-        if (count_ >= record_time_) {
+        if (curr_timestamp_ >= record_time_) {
             should_close_ = true;
         }
     }
@@ -133,17 +128,21 @@ class EventAnalyzer {
 
     size_t record_time() const { return record_time_; }
     Metavision::Roi::Window window() const { return window_; }
-
     Metavision::timestamp max_timestamp() const { return curr_timestamp_; }
 
+    size_t point_1d(Point point) const {
+        size_t px = point.x - window_.x;
+        size_t py = point.y - window_.y;
+        return px + py * window_.width;
+    }
+
   private:
-    size_t record_time_ = 10'000; // record time in us
+    int64_t record_time_ = 10'000; // record time in us
     Metavision::Roi::Window window_;
 
     std::map<Metavision::timestamp, Events> events_ = {};
     Metavision::timestamp curr_timestamp_ = 0;
     bool should_close_ = false;
-    size_t count_ = 0;
 };
 
 #endif
