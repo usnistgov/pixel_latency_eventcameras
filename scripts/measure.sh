@@ -18,253 +18,234 @@
 # damage to property. The software developed by NIST employees is not subject to copyright protection within the
 # United States.
 
+set -euo pipefail
+
 ################################################################################
 #                                configuration                                 #
 ################################################################################
 
-LATENCY_PROGRAM=../build/event_camera_latency_program
+LATENCY_PROGRAM=../../build/event_camera_latency_program
+CONFIG_FILE="$1"
+LOG_FILE=~/log.txt
+declare -a IRRADIANCES=()
+declare -a BIAS_CONFIGS=()
+declare -a ROI_CONFIGS=()
 
-#RECORD_TIME=20000000 #us (exposure time adapted for roi measurement)
-RECORD_TIME=5000000 #us (exposure time adapted for irradiance measurement)
-WINDOW_WIDTH=10  # ROI width
-WINDOW_HEIGHT=10 # ROI height
-X_START=630 # X coordinate of the first ROI
-Y_START=350 # Y coordinate of the first ROI
-X_ITER=3    # number of ROIs on X
-Y_ITER=3    # number of ROIs on Y
+parse_config() {
+    source "$CONFIG_FILE"
+    export Y_END=$((Y_START + ROI_HEIGHT * Y_ITER))
+    export X_END=$((X_START + ROI_WIDTH * X_ITER))
 
-# The bias config can be changed globaly or per config in the `bias_config`
-# function
-BIAS_DIFF=0
-BIAS_DIFF_OFF=0
-BIAS_DIFF_ON=0
-BIAS_FO=0
-BIAS_HPF=0
-BIAS_REFR=0
+    for line in $(grep "^#bias:" "$CONFIG_FILE"); do
+        BIAS_CONFIGS+=($line)
+    done
 
-# Configurations that will be ran:
-BIAS_CONFIGS=("min" "min/2" "zero" "max/4" "max/2" "max")
-ROI_CONFIGS=("32" "64" "128" "256" "420")
-
-# do not change this 2 variables
-declare -a IRRADIANCES=() # leave empty
-OUTPUT_DIRECTORY="out"
+    for line in $(grep "^#roi:" "$CONFIG_FILE"); do
+        ROI_CONFIGS+=($line)
+    done
+}
 
 bias_config() {
-    case "$1" in
-        "min")
-            BIAS_DIFF_OFF=-35
-            BIAS_DIFF_ON=-85
-            ;;
-        "min/2")
-            BIAS_DIFF_OFF=-17
-            BIAS_DIFF_ON=-42
-            ;;
-        "zero")
-            BIAS_DIFF_OFF=0
-            BIAS_DIFF_ON=0
-            ;;
-        "max/4")
-            BIAS_DIFF_OFF=45
-            BIAS_DIFF_ON=35
-            ;;
-        "max/2")
-            BIAS_DIFF_OFF=95
-            BIAS_DIFF_ON=70
-            ;;
-        "max")
-            BIAS_DIFF_OFF=190
-            BIAS_DIFF_ON=140
-            ;;
-    esac
+    local vals=$(echo $1 | awk -F'=' '{ print $2 }')
+
+    export CONFIG_NAME=$(echo $1 | awk -F'=' '{ print $1 }' | sed 's/#bias://')
+
+    # biases values
+    export BIAS_DIFF=$(echo $vals | awk -F';' '{ print $1 }')
+    export BIAS_DIFF_OFF=$(echo $vals | awk -F';' '{ print $2 }')
+    export BIAS_DIFF_ON=$(echo $vals | awk -F';' '{ print $3 }')
+    export BIAS_FO=$(echo $vals | awk -F';' '{ print $4 }')
+    export BIAS_HPF=$(echo $vals | awk -F';' '{ print $5 }')
+    export BIAS_REFR=$(echo $vals | awk -F';' '{ print $6 }')
 }
 
 roi_config() {
-    case "$1" in
-        "32") X_START=420; Y_START=170; WINDOW_WIDTH=32; WINDOW_HEIGHT=32 ;;
-        "64") X_START=420; Y_START=170; WINDOW_WIDTH=64; WINDOW_HEIGHT=64 ;;
-        "128") X_START=420; Y_START=170; WINDOW_WIDTH=128; WINDOW_HEIGHT=128 ;;
-        "256") X_START=420; Y_START=170; WINDOW_WIDTH=256; WINDOW_HEIGHT=256 ;;
-        "420") X_START=420; Y_START=170; WINDOW_WIDTH=420; WINDOW_HEIGHT=420 ;;
-    esac
+    local vals=$(echo $1 | awk -F'=' '{ print $2 }')
+
+    export CONFIG_NAME=$(echo $1 | awk -F'=' '{ print $1 }' | sed 's/#roi://')
+
+    # roi values
+    export X_START=$(echo $vals | awk -F';' '{ print $1 }')
+    export Y_START=$(echo $vals | awk -F';' '{ print $2 }')
+    export ROI_WIDTH=$(echo $vals | awk -F';' '{ print $3 }')
+    export ROI_HEIGHT=$(echo $vals | awk -F';' '{ print $4 }')
 }
 
 ################################################################################
-#                                  functions                                   #
+#                             json file generation                             #
 ################################################################################
+
+json_dump_biases() {
+    echo "    \"bias_configs\":{"
+    NB_ELTS=${#BIAS_CONFIGS[@]}
+    for ((idx = 0; idx < NB_ELTS; idx += 1)); do
+        config=${BIAS_CONFIGS[$idx]}
+        bias_config "$config" >/dev/null
+        sub_dir="bias_${BIAS_DIFF}_${BIAS_DIFF_OFF}_${BIAS_DIFF_ON}_${BIAS_FO}_${BIAS_HPF}_${BIAS_REFR}"
+        echo -n "        \"$CONFIG_NAME\":\"$sub_dir\""
+        [ $idx -eq $((NB_ELTS - 1)) ] && echo "" || echo ","
+    done
+    echo "    },"
+}
+
+json_dump_rois() {
+    echo "    \"roi_directories_names\":["
+    local x_last=$((X_END - ROI_WIDTH))
+    local y_last=$((Y_END - ROI_HEIGHT))
+    for ((y = Y_START; y < Y_END; y += ROI_HEIGHT)); do
+        for ((x = X_START; x < X_END; x += ROI_WIDTH)); do
+            echo -n "        \"${x}_${y}_${ROI_WIDTH}_${ROI_HEIGHT}\""
+            [ $y -eq $y_last ] && [ $x -eq $x_last ] && echo "" || echo ","
+        done
+    done
+    echo "    ],"
+}
+
+json_dump_irradiances() {
+    echo "    \"irradiance_configs\":{"
+    NB_ELTS=${#IRRADIANCES[@]}
+    for ((idx = 0; idx < NB_ELTS; idx += 1)); do
+        irr=${IRRADIANCES[$idx]}
+        echo -n "        \"$irr\":\"irr_$irr\""
+        [ $idx -eq $((NB_ELTS - 1)) ] && echo "" || echo ","
+    done
+    echo "    },"
+}
+
+json_dump_multipixels() {
+    echo "    \"multi_pixel_latency_files\":{"
+    NB_ELTS=${#ROI_CONFIGS[@]}
+    for ((idx = 0; idx < NB_ELTS; idx += 1)); do
+        config=${ROI_CONFIGS[$idx]}
+        roi_config "$config" >/dev/null
+        sub_dir="roi_${X_START}_${Y_START}_${ROI_WIDTH}x${ROI_HEIGHT}"
+        echo -n "        \"$CONFIG_NAME\":\"$sub_dir\""
+        [ $idx -eq $((NB_ELTS - 1)) ] && echo "" || echo ","
+    done
+    echo "    }"
+}
 
 create_json_config() {
-    echo '{' >> $RESULT_DIRECTORY/config.json
-
-    # bias dirs
-    echo '    "bias_configs":{' >> $RESULT_DIRECTORY/config.json
-    NB_ELTS=${#BIAS_CONFIGS[@]}
-    for ((idx=0; idx<$NB_ELTS; idx+=1)); do
-        config=${BIAS_CONFIGS[$idx]}
-        bias_config $config
-        SUB_DIRECTORY="bias_${BIAS_DIFF}_${BIAS_DIFF_OFF}_${BIAS_DIFF_ON}_${BIAS_FO}_${BIAS_HPF}_${BIAS_REFR}"
-        if [ $idx -eq $(($NB_ELTS - 1)) ]; then
-            echo "        \"$config\":\"$SUB_DIRECTORY\"" >> $RESULT_DIRECTORY/config.json
-        else
-            echo "        \"$config\":\"$SUB_DIRECTORY\"," >> $RESULT_DIRECTORY/config.json
-        fi
-    done
-    echo '    },' >> $RESULT_DIRECTORY/config.json
-
-    # roi dirs
-    echo '    "roi_directories_names":[' >> $RESULT_DIRECTORY/config.json
-    Y_END=$(($Y_START + $WINDOW_HEIGHT * $Y_ITER))
-    X_END=$(($X_START + $WINDOW_WIDTH * $X_ITER))
-    for ((y=$Y_START; y<$Y_END; y+=$WINDOW_HEIGHT)); do
-        for ((x=$X_START; x<$X_END; x+=$WINDOW_WIDTH)); do
-            if [ $y -eq $(($Y_END - $WINDOW_HEIGHT)) ] && [ $x -eq $(($X_END - $WINDOW_WIDTH)) ]; then
-                echo "        \"${x}_${y}_${WINDOW_WIDTH}_${WINDOW_HEIGHT}\"" >> $RESULT_DIRECTORY/config.json
-            else
-                echo "        \"${x}_${y}_${WINDOW_WIDTH}_${WINDOW_HEIGHT}\"," >> $RESULT_DIRECTORY/config.json
-            fi
-        done
-    done
-    echo '    ],' >> $RESULT_DIRECTORY/config.json
-
-    # irradiance dirs
-    echo '    "irradiance_configs":{' >> $RESULT_DIRECTORY/config.json
-    NB_ELTS=${#IRRADIANCES[@]}
-    for ((idx=0; idx<$NB_ELTS; idx+=1)); do
-        irr=${IRRADIANCES[$idx]}
-        if [ $idx -eq $(($NB_ELTS - 1)) ]; then
-            echo "        \"$irr\":\"irr_$irr\"" >> $RESULT_DIRECTORY/config.json
-        else
-            echo "        \"$irr\":\"irr_$irr\"," >> $RESULT_DIRECTORY/config.json
-        fi
-    done
-
-    # multi pixel testing dirs
-    echo '    },' >> $RESULT_DIRECTORY/config.json
-    echo '    "multi_pixel_latency_files":{' >> $RESULT_DIRECTORY/config.json
-    NB_ELTS=${#ROI_CONFIGS[@]}
-    for ((idx=0; idx<$NB_ELTS; idx+=1)); do
-        config=${ROI_CONFIGS[$idx]}
-        roi_config $config
-        SUB_DIRECTORY="roi_${X_START}_${Y_START}_${WINDOW_WIDTH}x${WINDOW_HEIGHT}"
-        if [ $idx -eq $(($NB_ELTS - 1)) ]; then
-            echo "        \"$config\":\"$SUB_DIRECTORY\"" >> $RESULT_DIRECTORY/config.json
-        else
-            echo "        \"$config\":\"$SUB_DIRECTORY\"," >> $RESULT_DIRECTORY/config.json
-        fi
-    done
-    echo '    }' >> $RESULT_DIRECTORY/config.json
-
-    echo '}' >> $RESULT_DIRECTORY/config.json
+    echo "{"
+    json_dump_biases
+    json_dump_rois
+    json_dump_irradiances
+    json_dump_multipixels
+    echo "}"
 }
 
-# measure latency0;0;0;0;0;0;0;0;
+################################################################################
+#                              measure functions                               #
+################################################################################
 
+run_latency_program() {
+    echo "$LATENCY_PROGRAM -o "$1" \
+        --dump-latency \
+        --dump-map \
+        --record-time "$RECORD_TIME" \
+        --window-x "$2" --window-y "$3" \
+        --window-width "$ROI_WIDTH" \
+        --window-height "$ROI_HEIGHT" \
+        --bias-diff "$BIAS_DIFF" \
+        --bias-diff-off "$BIAS_DIFF_OFF" \
+        --bias-diff-on "$BIAS_DIFF_ON" \
+        --bias-fo "$BIAS_FO" \
+        --bias-hpf "$BIAS_HPF" \
+        --bias-refr "$BIAS_REFR" \
+        --slave"
+}
 
 measure_latency() {
-    bias_config $1
+    bias_config "$3"
 
-    Y_END=$(($Y_START + $WINDOW_HEIGHT * $Y_ITER))
-    X_END=$(($X_START + $WINDOW_WIDTH * $X_ITER))
-    SUB_DIRECTORY="bias_${BIAS_DIFF}_${BIAS_DIFF_OFF}_${BIAS_DIFF_ON}_${BIAS_FO}_${BIAS_HPF}_${BIAS_REFR}"
+    output_dir=$1
+    irradiance_dir=$2
+    bias_dir="bias_${BIAS_DIFF}_${BIAS_DIFF_OFF}_${BIAS_DIFF_ON}_${BIAS_FO}_${BIAS_HPF}_${BIAS_REFR}"
+    dir="$output_dir/$irradiance_dir/$bias_dir"
 
-    echo $X_START $X_END
-    echo $Y_START $Y_END
-    echo $SUB_DIRECTORY
+    echo "measure: $dir"
 
-    for ((y=$Y_START; y<$Y_END; y+=$WINDOW_HEIGHT)); do
-        for ((x=$X_START; x<$X_END; x+=$WINDOW_WIDTH)); do
-            $LATENCY_PROGRAM -o $SUB_DIRECTORY \
-                --record-time $RECORD_TIME \
-                --window-x $x --window-y $y \
-                --window-width $WINDOW_WIDTH \
-                --window-height $WINDOW_HEIGHT \
-                --bias-diff $BIAS_DIFF \
-                --bias-diff-off $BIAS_DIFF_OFF \
-                --bias-diff-on $BIAS_DIFF_ON \
-                --bias-fo $BIAS_FO \
-                --bias-hpf $BIAS_HPF \
-                --bias-refr $BIAS_REFR \
-                --slave
+    for ((y = Y_START; y < Y_END; y += ROI_HEIGHT)); do
+        for ((x = X_START; x < X_END; x += ROI_WIDTH)); do
+            roi_dir="$dir/${x}_${y}_${ROI_WIDTH}_${ROI_HEIGHT}"
+            mkdir -p "$roi_dir"
+            run_latency_program "$roi_dir" "$x" "$y"
         done
     done
-    cat $SUB_DIRECTORY/**/latency.txt > $SUB_DIRECTORY/latencies.txt
-    mv $SUB_DIRECTORY $OUTPUT_DIRECTORY
 }
 
-# running the latency program
-
 run_bias_measure() {
-    mkdir $OUTPUT_DIRECTORY
-    for config in ${BIAS_CONFIGS[@]}; do
-        measure_latency $config
+    mkdir -p "$1/irr_$2"
+    for config in "${BIAS_CONFIGS[@]}"; do
+        if [[ "${config:0}" != "#" ]]; then
+            measure_latency "$1" "irr_$2" "$config"
+        fi
     done
 }
 
 interative_run_bias_measure() {
-    read -p 'output directory name: ' RESULT_DIRECTORY
-    mkdir $RESULT_DIRECTORY
+    local output_dir="out"
 
-    while read -p 'irradiance (<C-d> to stop): ' IRRADIANCE; do
-        IRRADIANCES+=($IRRADIANCE)
-        OUTPUT_DIRECTORY=${RESULT_DIRECTORY}/irr_${IRRADIANCE}
-        run_bias_measure
+    read -r -p 'output directory name: ' output_dir
+    mkdir -p "$output_dir"
+
+    while read -r -p 'irradiance (<C-d> to stop): ' irr; do
+        echo "JOB-INFO: start measurement for irradiance $irr." >$LOG_FILE
+        echo "chosen irradiance: $irr"
+        IRRADIANCES+=("$irr")
+        run_bias_measure "$output_dir" "$irr"
+        echo "JOB-INFO: measurement for irradiance $irr finished." >>$LOG_FILE
     done
+    create_json_config >"$output_dir/config.json"
 }
 
 run_roi_measure() {
-    #mkdir $OUTPUT_DIRECTORY
-    for config in ${ROI_CONFIGS[@]}; do
-        roi_config $config
+    local output_dir="$1"
 
-        echo $X_START
-        echo $Y_START
-        echo $WINDOW_WIDTH
-        echo $WINDOW_HEIGHT
+    for config in "${ROI_CONFIGS[@]}"; do
+        local dir="$output_dir/roi_${X_START}_${Y_START}_${ROI_WIDTH}x${ROI_HEIGHT}"
 
-        SUB_DIRECTORY="roi_${X_START}_${Y_START}_${WINDOW_WIDTH}x${WINDOW_HEIGHT}"
-
-        $LATENCY_PROGRAM -o $SUB_DIRECTORY \
-            --record-time $RECORD_TIME \
-            --window-x $X_START --window-y $Y_START \
-            --window-width $WINDOW_WIDTH \
-            --window-height $WINDOW_HEIGHT \
-            --bias-diff 0 \
-            --bias-diff-off 0 \
-            --bias-diff-on 0 \
-            --bias-fo 0 \
-            --bias-hpf 0 \
-            --bias-refr 0 \
-            --slave
-
-        mv $SUB_DIRECTORY $OUTPUT_DIRECTORY
+        mkdir -p "$dir"
+        echo "$X_START $Y_START $ROI_WIDTH $ROI_HEIGHT"
+        roi_config "$config"
+        run_latency_program "$dir" "$X_START" "$Y_START"
     done
 }
 
 interative_run_roi_measure() {
-    read -p 'output directory name: ' OUTPUT_DIRECTORY
-    mkdir -p $OUTPUT_DIRECTORY
-    RESULT_DIRECTORY=$OUTPUT_DIRECTORY
-    run_roi_measure
+    local output_dir="out"
+
+    read -r -p 'output directory name: ' output_dir
+    mkdir -p "$output_dir"
+    echo "JOB-INFO: start ROI measurements." >$LOG_FILE
+    run_roi_measure "$output_dir"
+    create_json_config >"$output_dir/config.json"
 }
 
 ################################################################################
 #                                    script                                    #
 ################################################################################
 
-if [ $# -eq 0 ]; then
+parse_config
+
+if [ $# -eq 1 ]; then
+    echo "Running variable bias measurements"
     interative_run_bias_measure
 else
-    case $1 in
-        irr)
-            interative_run_bias_measure
-            ;;
-        roi)
-            interative_run_roi_measure
-            ;;
-        help)
-            echo "./measure.sh irr: irradiance measurement."
-            echo "./measure.sh roi: roi measurement"
-            ;;
+    case $2 in
+    irr)
+        echo "Running variable bias measurements"
+        interative_run_bias_measure
+        ;;
+    roi)
+        echo "Running variable roi measurements"
+        interative_run_roi_measure
+        ;;
+    help)
+        echo "./measure.sh <config-file> irr: irradiance measurement."
+        echo "./measure.sh <config-file> roi: roi measurement"
+        ;;
     esac
 fi
-create_json_config
+
+echo "JOB-DONE" >>$LOG_FILE
