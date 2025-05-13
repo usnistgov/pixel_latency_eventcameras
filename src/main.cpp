@@ -99,19 +99,19 @@ void dump(Config const &config, EventAnalyzer const &event_analyzer,
     std::string output_directory = config.output_directory;
 
     if (config.dump_latency) {
-        dump_latency(infos, output_directory + "latency.txt");
+        dump_latency(infos, output_directory + "/latency.txt");
     }
     if (config.dump_map) {
-        dump_latency_maps(infos, output_directory + "map.txt");
+        dump_latency_maps(infos, output_directory + "/map.txt");
     }
     if (config.dump_counts) {
-        event_analyzer.dump_events_counts(output_directory + "counts.txt");
+        event_analyzer.dump_events_counts(output_directory + "/counts.txt");
     }
     if (config.dump_positions) {
-        event_analyzer.dump_events_positions(output_directory + "positions.txt");
+        event_analyzer.dump_events_positions(output_directory + "/positions.txt");
     }
     if (config.dump_triggers) {
-        trigger_analyzer.dump_triggers(output_directory + "triggers.txt");
+        trigger_analyzer.dump_triggers(output_directory + "/triggers.txt");
     }
 }
 
