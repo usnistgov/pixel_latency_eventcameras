@@ -55,8 +55,28 @@ MULTI_PIXEL_LATENCY_FILES = dict()
 # directories
 ROI_DIRECTORIES = list()
 
+VARIDX_TITLE_TABLE = {
+    0: "Average latency per ROI",
+    1: "Stdev of latency per ROI",
+    2: "Min latency per ROI",
+    3: "Max of latency per ROI",
+    4: "Median latency per ROI",
+    5: "Number of 0 events per ROI",
+    6: "Number of 1 events per ROI",
+}
 
-def parse_latency_file(latency_file):
+
+def create_image(args: object):
+    if args.output:
+        figure = plt.gcf()  # get current figure
+        figure.set_size_inches(8, 6)
+        print("DEBUG: OUTPUT_FILE=", args.output_file)
+        plt.savefig(args.output_file, dpi=100)
+    else:
+        plt.show()
+
+
+def parse_latency_file(latency_file: str):
     latencies = ([], [])
     stddevs = ([], [])
     min_vals = ([], [])
@@ -64,6 +84,10 @@ def parse_latency_file(latency_file):
     median_vals = ([], [])
     nb_zero_vals = ([], [])
     nb_one_vals = ([], [])
+
+    if not Path(latency_file).exists():
+        print(f"ERROR: {latency_file} does not exists.")
+        return None, None
 
     with open(latency_file) as latency_file:
         for line in latency_file:
@@ -106,17 +130,19 @@ def get_latencies_irradiance_bias(dir_name: str):
     latencies = {}
     dir = Path(dir_name)
 
-    for irradiance in IRRADIANCE_CONFIGS.keys():
+    for irradiance in IRRADIANCE_CONFIGS:
         irradiance_dir = Path(IRRADIANCE_CONFIGS[irradiance])
         latencies[irradiance] = {0: [], 1: []}
 
-        for bias in BIAS_CONFIGS.keys():
+        for bias in BIAS_CONFIGS:
             bias_dir = Path(BIAS_CONFIGS[bias])
             l0, l1 = [], []
 
             for roi_dir in ROI_DIRECTORIES:
                 latency_file = dir / irradiance_dir / bias_dir / roi_dir / "latency.txt"
                 latency0, latency1 = parse_latency_file(latency_file)
+                if latency0 == None or latency1 == None:
+                    continue
                 l0.append(latency0[0])
                 l1.append(latency1[0])
 
@@ -137,10 +163,12 @@ def get_latencies_roi_bias(dir_name: str, irradiance_dir_name: str):
     for idx, roi_dir in enumerate(ROI_DIRECTORIES):
         latencies[idx] = {0: [], 1: []}
 
-        for bias in BIAS_CONFIGS.keys():
+        for bias in BIAS_CONFIGS:
             bias_dir = Path(BIAS_CONFIGS[bias])
             latency_file = dir / irradiance_dir / bias_dir / roi_dir / "latency.txt"
             latency0, latency1 = parse_latency_file(latency_file)
+            if latency0 == None or latency1 == None:
+                continue
             latencies[idx][0].append(latency0)
             latencies[idx][1].append(latency1)
 
@@ -158,10 +186,12 @@ def get_latencies_roi_irradiance(dir_name: str, bias_dir_name: str):
     for idx, roi_dir in enumerate(ROI_DIRECTORIES):
         latencies[idx] = {0: [], 1: []}
 
-        for irradiance in IRRADIANCE_CONFIGS.keys():
+        for irradiance in IRRADIANCE_CONFIGS:
             irradiance_dir = Path(IRRADIANCE_CONFIGS[irradiance])
             latency_file = dir / irradiance_dir / bias_dir / roi_dir / "latency.txt"
             latency0, latency1 = parse_latency_file(latency_file)
+            if latency0 == None or latency1 == None:
+                continue
             latencies[idx][0].append(latency0)
             latencies[idx][1].append(latency1)
 
@@ -176,27 +206,31 @@ def get_latencies_bias_irradiance(dir_name: str, roi_dir_name: str):
     roi_dir = Path(roi_dir_name)
     dir = Path(dir_name)
 
-    for bias in BIAS_CONFIGS.keys():
+    for bias in BIAS_CONFIGS:
         bias_dir = Path(BIAS_CONFIGS[bias])
         latencies[bias] = {0: [], 1: []}
 
-        for irradiance in IRRADIANCE_CONFIGS.keys():
+        for irradiance in IRRADIANCE_CONFIGS:
             irradiance_dir = Path(IRRADIANCE_CONFIGS[irradiance])
             latency_file = dir / irradiance_dir / bias_dir / roi_dir / "latency.txt"
             latency0, latency1 = parse_latency_file(latency_file)
+            if latency0 == None or latency1 == None:
+                continue
             latencies[bias][0].append(latency0)
             latencies[bias][1].append(latency1)
 
     return latencies
 
 
-def plot_stddev_bias_irr(dir_name: str, bias_config: str, irr: str, pol: str):
+def plot_stddev_bias_irr(dir_name: str, args: object):
     vals = []
     for roi_dir in ROI_DIRECTORIES:
-        latency_file = Path(dir_name) / IRRADIANCE_CONFIGS[irr] / BIAS_CONFIGS[
-            bias_config] / roi_dir / "latency.txt"
+        latency_file = Path(dir_name) / IRRADIANCE_CONFIGS[args.irradiance] / BIAS_CONFIGS[
+            args.bias] / roi_dir / "latency.txt"
         latency0, latency1 = parse_latency_file(latency_file)
-        if pol == "0":
+        if latency0 == None or latency1 == None:
+            continue
+        if args.polarity == "0":
             vals.append(latency0[1])
             plt.title("Latency Stdev per ROI (polarity 0)")
             #print("INFO: Polarity 0 roi_dir=", roi_dir, ", stdev latency=", latency0[1])
@@ -208,28 +242,24 @@ def plot_stddev_bias_irr(dir_name: str, bias_config: str, irr: str, pol: str):
     plt.plot(vals)
     plt.ylabel("stdev of latency (us)")
     plt.xlabel("ROI index")
-    if OUTPUT_FLAG:
-        figure = plt.gcf()  # get current figure
-        figure.set_size_inches(8, 6)
-        plt.savefig(OUTPUT_FILE, dpi=100)
-    else:
-        plt.show()
+    create_image(args)
 
 
 '''
 Plots min, median, and max values per ROI for each irradiance and each bias
 '''
 
-
-def plot_median_bias_irr(dir_name: str, bias_config: str, irr: str, pol: str):
+def plot_median_bias_irr(dir_name: str, args: object):
     vals_min = []
     vals_max = []
     vals_median = []
     for roi_dir in ROI_DIRECTORIES:
-        latency_file = Path(dir_name) / IRRADIANCE_CONFIGS[irr] / BIAS_CONFIGS[
-            bias_config] / roi_dir / "latency.txt"
+        latency_file = Path(dir_name) / IRRADIANCE_CONFIGS[args.irradiance] / BIAS_CONFIGS[
+            args.bias] / roi_dir / "latency.txt"
         latency0, latency1 = parse_latency_file(latency_file)
-        if pol == "0":
+        if latency0 == None or latency1 == None:
+            continue
+        if args.polarity == "0":
             vals_min.append(latency0[2])
             vals_max.append(latency0[3])
             vals_median.append(latency0[4])
@@ -259,29 +289,23 @@ def plot_median_bias_irr(dir_name: str, bias_config: str, irr: str, pol: str):
     plt.legend()
     plt.ylabel("min/median/max of latency (us)")
     plt.xlabel("ROI index")
-
-    if OUTPUT_FLAG:
-        figure = plt.gcf()  # get current figure
-        figure.set_size_inches(8, 6)
-        plt.savefig(OUTPUT_FILE, dpi=100)
-    else:
-        plt.show()
+    create_image(args)
 
 
 '''
 Plots number of 0 and 1 polarity events per ROI for each irradiance and each bias
 '''
 
-
-def plot_nbevents_bias_irr(dir_name: str, bias_config: str, irr: str,
-                           pol: str):
+def plot_nbevents_bias_irr(dir_name: str, args: object):
     vals_nb_zero_pol = []
     vals_nb_one_pol = []
     for roi_dir in ROI_DIRECTORIES:
-        latency_file = Path(dir_name) / IRRADIANCE_CONFIGS[irr] / BIAS_CONFIGS[
-            bias_config] / roi_dir / "latency.txt"
+        latency_file = Path(dir_name) / IRRADIANCE_CONFIGS[args.irradiance] / BIAS_CONFIGS[
+            args.bias] / roi_dir / "latency.txt"
         latency0, latency1 = parse_latency_file(latency_file)
-        if pol == "0":
+        if latency0 == None or latency1 == None:
+            continue
+        if args.polarity == "0":
             vals_nb_zero_pol.append(latency0[5])
             vals_nb_one_pol.append(latency0[6])
             plt.title(
@@ -300,13 +324,7 @@ def plot_nbevents_bias_irr(dir_name: str, bias_config: str, irr: str,
     plt.legend()
     plt.ylabel("number of 0 & 1 polarity events")
     plt.xlabel("ROI index")
-
-    if OUTPUT_FLAG:
-        figure = plt.gcf()  # get current figure
-        figure.set_size_inches(8, 6)
-        plt.savefig(OUTPUT_FILE, dpi=100)
-    else:
-        plt.show()
+    create_image(args)
 
 
 def plot_latency(latencies: dict,
@@ -320,7 +338,7 @@ def plot_latency(latencies: dict,
     fig, ax = plt.subplots(2, 1, squeeze=False)
     plt.subplots_adjust(hspace=0.3)
 
-    for k in latencies.keys():
+    for k in latencies:
         v = latencies[k]
         latencies0 = [l0[0] for l0 in v[0]]
         latencies0_stddev = [l0[1] for l0 in v[0]]
@@ -349,8 +367,7 @@ def plot_latency(latencies: dict,
     fig.suptitle(suptitle)
 
 
-def plot_latency_roi_bias(latency_directory: str, irradiance: str,
-                          stddev: bool):
+def plot_latency_roi_bias(latency_directory: str, args: object):
     """Plot latency per ROI over bias configurations."""
     latencies = get_latencies_roi_bias(latency_directory,
                                        IRRADIANCE_CONFIGS[irradiance])
@@ -359,118 +376,93 @@ def plot_latency_roi_bias(latency_directory: str, irradiance: str,
         f"Latency for events of polarity 0 and 1 / bias configuration (irradiance = {irradiance} W/m2)",
         "event latency per ROI / bias configurations", "bias configurations",
         "latency (us)")
-    if OUTPUT_FLAG:
-        figure = plt.gcf()  # get current figure
-        figure.set_size_inches(8, 6)
-        print("DEBUG: OUTPUT_FILE=", OUTPUT_FILE)
-        plt.savefig(OUTPUT_FILE, dpi=100)
-    else:
-        plt.show()
+    create_image(args)
 
 
-def plot_latency_roi_irradiance(latency_directory: str, bias_config: str,
-                                stddev: bool):
+def plot_latency_roi_irradiance(latency_directory: str, args: object):
     """Plot latency per ROI over irradiance."""
     latencies = get_latencies_roi_irradiance(latency_directory,
-                                             BIAS_CONFIGS[bias_config])
+                                             BIAS_CONFIGS[args.bias])
     plot_latency(
-        latencies, IRRADIANCE_CONFIGS.keys(), stddev,
-        f"Latency for events of polarity 0 and 1 / irradiance (bias configuration = {bias_config})",
+        latencies, IRRADIANCE_CONFIGS.keys(), args.stddev,
+        f"Latency for events of polarity 0 and 1 / irradiance (bias configuration = {args.bias})",
         "event latency per ROI / irradiance", "irradiance (W/m2)",
         "latency (us)")
-
-    if OUTPUT_FLAG:
-        figure = plt.gcf()  # get current figure
-        figure.set_size_inches(8, 6)
-        plt.savefig(OUTPUT_FILE, dpi=100)
-    else:
-        plt.show()
+    create_image(args)
 
 
-def plot_latency_bias_irradiance(latency_directory: str, roi_config: str,
-                                 stddev: bool):
+def plot_latency_bias_irradiance(latency_directory: str, args: object):
     """Plot latency per bias config over irradiance."""
-    latencies = get_latencies_bias_irradiance(latency_directory, roi_config)
-    plot_latency(latencies, IRRADIANCE_CONFIGS.keys(), stddev,
+    latencies = get_latencies_bias_irradiance(latency_directory, args.roi)
+    plot_latency(latencies, IRRADIANCE_CONFIGS.keys(), args.stddev,
                  "Latency for bias configurations / irradiance",
                  "latency for bias configurations / irradiance",
                  "irradiance (W/m2)", "latency (us)", True)
     plt.legend()
-    if OUTPUT_FLAG:
-        figure = plt.gcf()  # get current figure
-        figure.set_size_inches(8, 6)
-        plt.savefig(OUTPUT_FILE, dpi=100)
-    else:
-        plt.show()
+    create_image(args)
 
 
-def plot_latency_irradiance_bias(latency_directory: str, stddev: bool):
+def plot_latency_irradiance_bias(latency_directory: str, args: object):
     """Plot latency per irradiance over bias configurations."""
     latencies = get_latencies_irradiance_bias(latency_directory)
     plot_latency(
-        latencies, BIAS_CONFIGS.keys(), stddev,
+        latencies, BIAS_CONFIGS.keys(), args.stddev,
         "Latency for events of polarity 0 and 1 per irradiance / bias configuration",
         "event latency per irradiace / bias config", "bias config",
         "latency (us)", True)
-    if OUTPUT_FLAG:
-        figure = plt.gcf()  # get current figure
-        figure.set_size_inches(8, 6)
-        plt.savefig(OUTPUT_FILE, dpi=100)
-    else:
-        plt.show()
+    create_image(args)
 
 
-def plot_map(latency_directory: str, width: int, height: int, vmax: int,
-             polarity: int, stddev: bool):
+def plot_map(latency_directory: str, args: object):
+    width = int(args.width)
+    height = int(args.height)
+    vmax = int(args.vmax)
+    polarity = int(args.polarity)
     dir = Path(latency_directory)
     fig, ax = plt.subplots(len(IRRADIANCE_CONFIGS.keys()),
                            len(BIAS_CONFIGS.keys()),
                            squeeze=False)
-    for irr_idx, irr in enumerate(IRRADIANCE_CONFIGS.keys()):
-        for bias_idx, bias in enumerate(BIAS_CONFIGS.keys()):
+    for irr_idx, irr in enumerate(IRRADIANCE_CONFIGS):
+        for bias_idx, bias in enumerate(BIAS_CONFIGS):
             latencies = np.zeros((width, height))
             for roi_idx, roi in enumerate(ROI_DIRECTORIES):
                 latency_file = dir / IRRADIANCE_CONFIGS[irr] / \
                     BIAS_CONFIGS[bias] / roi / "latency.txt"
-                if latency_file.exists():
-                    latency0, latency1 = parse_latency_file(latency_file)
-                    if polarity == 0:
-                        latencies[roi_idx // height, roi_idx % height] = \
-                            latency0[1 if stddev else 0]
-                    else:
-                        latencies[roi_idx // height, roi_idx % height] = \
-                            latency1[1 if stddev else 0]
-                else:
+                latency0, latency1 = parse_latency_file(latency_file)
+                if latency0 == None or latency1 == None:
                     latencies[roi_idx // height, roi_idx % height] = vmax
+                    continue
+                if polarity == 0:
+                    latencies[roi_idx // height, roi_idx % height] = \
+                        latency0[1 if args.stddev else 0]
+                else:
+                    latencies[roi_idx // height, roi_idx % height] = \
+                        latency1[1 if args.stddev else 0]
 
             ax[irr_idx, bias_idx].imshow(latencies, vmin=0, vmax=vmax)
 
-    for irr_idx, irr in enumerate(IRRADIANCE_CONFIGS.keys()):
+    for irr_idx, irr in enumerate(IRRADIANCE_CONFIGS):
         ax[irr_idx, 0].set_ylabel(f"{irr}")
 
-    for bias_idx, bias in enumerate(BIAS_CONFIGS.keys()):
+    for bias_idx, bias in enumerate(BIAS_CONFIGS):
         ax[len(IRRADIANCE_CONFIGS) - 1, bias_idx].set_xlabel(bias)
 
-    if stddev:
+    if args.stddev:
         fig.suptitle("Stdev of latency per ROI")
     else:
         fig.suptitle("Average latency per ROI")
-    if OUTPUT_FLAG:
-        figure = plt.gcf()  # get current figure
-        figure.set_size_inches(8, 6)
-        plt.savefig(OUTPUT_FILE, dpi=100)
-    else:
-        plt.show()
+
+    create_image(args)
 
 
 '''
 Plot maps of avg, stdev, min, max, median, nb of 0 events, nb of 1 events
 '''
 
-
-def plot_map_roi(latency_directory: str, width: int, height: int, vmax: int,
-                 polarity: int, varidx: int):
-
+def plot_map_roi(latency_directory: str, args: object):
+    width, height = int(args.width), int(args.height)
+    vmax = int(args.vmax)
+    varidx = int(args.varidx)
     dir = Path(latency_directory)
     fig, ax = plt.subplots(len(IRRADIANCE_CONFIGS.keys()),
                            len(BIAS_CONFIGS.keys()),
@@ -478,33 +470,24 @@ def plot_map_roi(latency_directory: str, width: int, height: int, vmax: int,
                            sharex=True,
                            sharey=True)
 
-    for irr_idx, irr in enumerate(IRRADIANCE_CONFIGS.keys()):
-        for bias_idx, bias in enumerate(BIAS_CONFIGS.keys()):
+    if varidx < 0 or varidx >= 7:
+        print("ERROR: index of the pre-computed stats is out of range, var=",
+              var, ", max len for P0=", str(len(latency0)))
+        return
+
+    for irr_idx, irr in enumerate(IRRADIANCE_CONFIGS):
+        irr_dir = IRRADIANCE_CONFIGS[irr]
+        for bias_idx, bias in enumerate(BIAS_CONFIGS):
+            bias_dir = BIAS_CONFIGS[bias]
             latencies = np.zeros((width, height))
             for roi_idx, roi in enumerate(ROI_DIRECTORIES):
-                latency_file = dir / IRRADIANCE_CONFIGS[irr] / \
-                    BIAS_CONFIGS[bias] / roi / "latency.txt"
-                if latency_file.exists():
-                    latency0, latency1 = parse_latency_file(latency_file)
-                    if polarity == 0:
-                        # sanity check
-                        if varidx < 0 or varidx >= len(latency0):
-                            print(
-                                "ERROR: index of the pre-computed stats is out of range, var=",
-                                var, ", max len for P0=", str(len(latency0)))
-                            continue
-                        latencies[roi_idx // height, roi_idx % height] = \
-                            latency0[varidx]
-                    else:
-                        if varidx < 0 or varidx >= len(latency1):
-                            print(
-                                "ERROR: index of the pre-computed stats is out of range, var=",
-                                var, ", max len for P1=", str(len(latency1)))
-                            continue
-                        latencies[roi_idx // height, roi_idx % height] = \
-                            latency1[varidx]
-                else:
+                latency_file = dir / irr_dir / bias_dir / roi / "latency.txt"
+                latency0, latency1 = parse_latency_file(latency_file)
+                if latency0 == None or latency1 == None:
                     latencies[roi_idx // height, roi_idx % height] = vmax
+                    continue
+                latencies[roi_idx // height, roi_idx % height] = \
+                    latency0[varidx] if args.polarity == "0" else latency1[varidx]
 
             ax[irr_idx, bias_idx].imshow(latencies, vmin=0, vmax=vmax)
 
@@ -514,20 +497,7 @@ def plot_map_roi(latency_directory: str, width: int, height: int, vmax: int,
     for bias_idx, bias in enumerate(BIAS_CONFIGS.keys()):
         ax[len(IRRADIANCE_CONFIGS) - 1, bias_idx].set_xlabel(bias)
 
-    if varidx == 0:
-        fig.suptitle("Average latency per ROI")
-    elif varidx == 1:
-        fig.suptitle("Stdev of latency per ROI")
-    elif varidx == 2:
-        fig.suptitle("Min latency per ROI")
-    elif varidx == 3:
-        fig.suptitle("Max of latency per ROI")
-    elif varidx == 4:
-        fig.suptitle("Median latency per ROI")
-    elif varidx == 5:
-        fig.suptitle("Number of 0 events per ROI")
-    elif varidx == 6:
-        fig.suptitle("Number of 1 events per ROI")
+    fig.suptitle(VARIDX_TITLE_TABLE[varidx])
 
 
     value_min = np.min(latencies)
@@ -538,26 +508,19 @@ def plot_map_roi(latency_directory: str, width: int, height: int, vmax: int,
     # cax=plt.axes: the meaning of the numbers
     # 0.85 (left to right), 0.1 (top to bottom), 0.075 (width/thickness), 0.8 (height)
     fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap),cax=plt.axes([0.916, 0.114, 0.02, 0.762])).set_label('Color Map')
-
-    if OUTPUT_FLAG:
-        figure = plt.gcf()  # get current figure
-        figure.set_size_inches(8, 6)
-        plt.savefig(OUTPUT_FILE, dpi=100)
-    else:
-        plt.show()
+    create_image(args)
 
 
-def plot_multipixel_latency(latency_directory: str, polarity: int,
-                            stddev: bool, logX: bool = False,
-                            logY: bool = False):
+def plot_multipixel_latency(latency_directory: str, args: object):
+    polarity = int(args.polarity)
     latency_directories = latency_directory.split(",")
     results = dict()
 
     for cam_idx, latency_dir in enumerate(latency_directories):
         result = {}
 
-        with open(Path(latency_dir) / "config.json") as config_file:
-            config = json.load(config_file)
+        with open(Path(latency_dir) / "config.yaml") as config_file:
+            config = yaml.safe_load(config_file)
             MULTI_PIXEL_LATENCY_FILES = config["multi_pixel_latency_files"]
 
         for size in MULTI_PIXEL_LATENCY_FILES.keys():
@@ -567,6 +530,9 @@ def plot_multipixel_latency(latency_directory: str, polarity: int,
             sub_dir = sub_dir.replace("x", "_")  # replace WxH with W_H values
             print("DEBUG: sub_dir=", sub_dir)
             latency_file = os.path.join(latency_dir, dir, sub_dir, "latency.txt")
+            if not Path(latency_file).exists():
+                print(f"ERROR: {latency_file} does not exits.")
+                continue
             print("DEBUG: latency_dir=", latency_dir, ", dir=", dir, ", latency_file=", latency_file)
             result[int(size)] = parse_latency_file(latency_file)
 
@@ -579,7 +545,7 @@ def plot_multipixel_latency(latency_directory: str, polarity: int,
         # poly1d = np.poly1d(coef)
         std = [latency[polarity][1] for latency in result.values()]
         print(values)
-        if stddev:
+        if args.stddev:
             plt.errorbar(result.keys(), values, std, label=cam)
         else:
             x = list(result.keys())
@@ -590,16 +556,11 @@ def plot_multipixel_latency(latency_directory: str, polarity: int,
     plt.xlabel("nb pixels")
     plt.legend()
     plt.title("Latency over ROI sizes")
-    if logX:
+    if args.logX:
         plt.xscale("log")
-    if logY:
+    if args.logY:
         plt.yscale("log")
-    if OUTPUT_FLAG:
-        figure = plt.gcf()  # get current figure
-        figure.set_size_inches(8, 6)
-        plt.savefig(OUTPUT_FILE, dpi=100)
-    else:
-        plt.show()
+    create_image(args)
 
 
 def print_stddev(dir_name: str):
@@ -686,7 +647,7 @@ def parse_args():
     parser.add_argument("-M", "--vmax", default=1000)
     parser.add_argument("-V", "--varidx", default=0)
     parser.add_argument("-O", "--output", action='store_true', required=False)
-    parser.add_argument("-OFile", "--outFile", default="./test.png",
+    parser.add_argument("-o", "--output-file", default="./test.png",
                         required=False)
 
     return parser.parse_args()
@@ -701,17 +662,10 @@ def main():
     global IRRADIANCE_CONFIGS
     global MULTI_PIXEL_LATENCY_FILES
     global ROI_DIRECTORIES
-    global OUTPUT_FLAG
-    global OUTPUT_FILE
 
     if args.output:
-        OUTPUT_FLAG = True
-        OUTPUT_FILE = args.outFile
         plt.rcParams.update({'font.size': 13})
-    else:
-        OUTPUT_FLAG = False
-        OUTPUT_FILE = "./test.png"
-    print("DEBUG: OUTPUT_FLAG= ", OUTPUT_FLAG, ", OUTPUT_FILE=", OUTPUT_FILE)
+    print("DEBUG: OUTPUT_FLAG= ", args.output, ", OUTPUT_FILE=", args.output_file)
 
     with open(Path(args.latency_directory.split(",")[0]) / "config.yaml") as config_file:
         config = yaml.safe_load(config_file)
@@ -724,34 +678,25 @@ def main():
         ]
 
     if args.mode == "lrb":
-        plot_latency_roi_bias(args.latency_directory, args.irradiance,
-                              args.stddev)
+        plot_latency_roi_bias(args.latency_directory, args)
     elif args.mode == "lri":
-        plot_latency_roi_irradiance(args.latency_directory, args.bias,
-                                    args.stddev)
+        plot_latency_roi_irradiance(args.latency_directory, args)
     elif args.mode == "lbi":
-        plot_latency_bias_irradiance(args.latency_directory, args.roi,
-                                     args.stddev)
+        plot_latency_bias_irradiance(args.latency_directory, args)
     elif args.mode == "lib":
-        plot_latency_irradiance_bias(args.latency_directory, args.stddev)
+        plot_latency_irradiance_bias(args.latency_directory, args)
     elif args.mode == "mul":
-        plot_multipixel_latency(args.latency_directory, int(args.polarity),
-                                args.stddev, args.logX, args.logY)
+        plot_multipixel_latency(args.latency_directory, args)
     elif args.mode == "map":
-        plot_map(args.latency_directory, int(args.width), int(args.height),
-                 int(args.vmax), int(args.polarity), args.stddev)
+        plot_map(args.latency_directory, args)
     elif args.mode == "maproi":
-        plot_map_roi(args.latency_directory, int(args.width), int(args.height),
-                     int(args.vmax), int(args.polarity), int(args.varidx))
+        plot_map_roi(args.latency_directory, args)
     elif args.mode == "std":
-        plot_stddev_bias_irr(args.latency_directory, args.bias,
-                             args.irradiance, args.polarity)
+        plot_stddev_bias_irr(args.latency_directory, args)
     elif args.mode == "median":
-        plot_median_bias_irr(args.latency_directory, args.bias,
-                             args.irradiance, args.polarity)
+        plot_median_bias_irr(args.latency_directory, args)
     elif args.mode == "nbevents":
-        plot_nbevents_bias_irr(args.latency_directory, args.bias,
-                               args.irradiance, args.polarity)
+        plot_nbevents_bias_irr(args.latency_directory, args)
     elif args.mode == "stdroi":
         print_stddev(args.latency_directory)
     else:
