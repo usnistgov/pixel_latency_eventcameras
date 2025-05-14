@@ -1,8 +1,8 @@
 export RECORD_TIME=3000000 #us (exposure time adapted for irradiance measurement)
-export ROI_WIDTH=10        # ROI width
-export ROI_HEIGHT=10       # ROI height
-export X_ITER=3            # number of ROIs on X
-export Y_ITER=3            # number of ROIs on Y
+export ROI_WIDTH=1280        # ROI width
+export ROI_HEIGHT=720       # ROI height
+export X_ITER=1            # number of ROIs on X
+export Y_ITER=1            # number of ROIs on Y
 export X_START=0
 export Y_START=0
 
@@ -23,12 +23,13 @@ export BIAS_REFR=0
 # /!\ no spaces allowed
 
 #bias:0=0;0;0;0;0;0
-#bias:0.25MAX=0;47;35;0;0;0
-#bias:0.50MAX=0;95;70;0;0;0
-#bias:0.75MAX=0;142;105;0;0;0
-#bias:0.25MIN=0;-8;-21;0;0;0
-#bias:0.50MIN=0;-17;-42;0;0;0
-#bias:0.75MIN=0;-25;-63;0;0;0
+
+# #bias:0.25MAX=0;47;35;0;0;0
+# #bias:0.50MAX=0;95;70;0;0;0
+# #bias:0.75MAX=0;142;105;0;0;0
+# #bias:0.25MIN=0;-8;-21;0;0;0
+# #bias:0.50MIN=0;-17;-42;0;0;0
+# #bias:0.75MIN=0;-25;-63;0;0;0
 
 # #bias:0.75MIN_FO=0;0;0;-26;0;0
 # #bias:0.50MIN_FO=0;0;0;-17;0;0
