@@ -22,7 +22,7 @@
 #                     script to generate multiple figures                      #
 ################################################################################
 
-PLOT_LATENCY_PROGRAM=./plot_latency.py
+PLOT_LATENCY_PROGRAM=../plot/plot_latency.py
 INPUT_DIR=$1
 OUTPUT_DIR=${INPUT_DIR}_ROI_result
 
@@ -42,7 +42,7 @@ for param_irr in ${PARAM_IRR_CONFIGS[@]}; do
          	--b ${param_bias} \
          	--polarity ${param_pol}  \
          	--output  \
-         	--outFile $OUTPUT_FILE \
+         	-o $OUTPUT_FILE \
 
          done
      done
@@ -62,7 +62,7 @@ for param_irr in ${PARAM_IRR_CONFIGS[@]}; do
          	--b ${param_bias} \
          	--polarity ${param_pol}  \
          	--output  \
-         	--outFile $OUTPUT_FILE \
+         	-o $OUTPUT_FILE \
 
          done
      done
@@ -82,7 +82,7 @@ for param_irr in ${PARAM_IRR_CONFIGS[@]}; do
             --b ${param_bias} \
             --polarity ${param_pol}  \
             --output  \
-            --outFile $OUTPUT_FILE \
+            -o $OUTPUT_FILE \
 
          done
      done

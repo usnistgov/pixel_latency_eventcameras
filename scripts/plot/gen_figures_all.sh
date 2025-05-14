@@ -27,7 +27,7 @@ CAMERA_MODEL="SilkyEvCamHD"
 #CAMERA_MODEL="SilkyEvCamVGA"
 echo "running experiment with camera model "${CAMERA_MODEL}
 
-PLOT_LATENCY_PROGRAM=./plot_latency.py
+PLOT_LATENCY_PROGRAM=../plot/plot_latency.py
 INPUT_DIR=$1
 OUTPUT_DIR=${INPUT_DIR}_result
 
@@ -42,7 +42,7 @@ for param in ${PARAM_CONFIGS[@]}; do
             --mode lri \
             --bias ${param} \
             --output  \
-            --outFile $OUTPUT_FILE \
+            -o $OUTPUT_FILE \
 
 done
 #############################################
@@ -59,7 +59,7 @@ OUTPUT_FILE="${OUTPUT_DIR}/latency_per_bias_forROI_${param}.png"
             --roi ${param} \
             --stddev  \
             --output  \
-            --outFile $OUTPUT_FILE \
+            -o $OUTPUT_FILE \
 
 done
 #################################################
@@ -69,7 +69,7 @@ $PLOT_LATENCY_PROGRAM $INPUT_DIR \
             --mode lib \
             --stddev  \
             --output  \
-            --outFile $OUTPUT_FILE \
+            -o $OUTPUT_FILE \
 
 
 #################################################
@@ -80,7 +80,7 @@ $PLOT_LATENCY_PROGRAM $INPUT_DIR \
 #            --mode mul \
 #            --polarity $POLARITY_VAL \
 #            --output  \
-#            --outFile $OUTPUT_FILE \
+#            -o $OUTPUT_FILE \
 
 ###########################################
 : '
@@ -95,7 +95,7 @@ for param_irr in ${PARAM_IRR_CONFIGS[@]}; do
          	--i ${param_irr} \
          	--b ${param_bias} \
          	--output  \
-         	--outFile $OUTPUT_FILE \
+         	-o $OUTPUT_FILE \
 
          done
 
@@ -112,7 +112,7 @@ for param_irr in ${PARAM_IRR_CONFIGS[@]}; do
          	--i ${param_irr} \
          	--b ${param_bias} \
          	--output  \
-         	--outFile $OUTPUT_FILE \
+         	-o $OUTPUT_FILE \
 
          done
 
@@ -129,7 +129,7 @@ for param_irr in ${PARAM_IRR_CONFIGS[@]}; do
          	--i ${param_irr} \
          	--b ${param_bias} \
          	--output  \
-         	--outFile $OUTPUT_FILE \
+         	-o $OUTPUT_FILE \
 
          done
 
@@ -148,7 +148,7 @@ for param in ${PARAM_CONFIGS[@]}; do
             --vmax ${param} \
             --polarity 0 \
             --output  \
-            --outFile $OUTPUT_FILE \
+            -o $OUTPUT_FILE \
 
 done
 
@@ -161,7 +161,7 @@ for param in ${PARAM_CONFIGS[@]}; do
             --vmax ${param} \
             --polarity 1 \
             --output  \
-            --outFile $OUTPUT_FILE \
+            -o $OUTPUT_FILE \
 
 done
 #########################
@@ -177,7 +177,7 @@ for param in ${PARAM_CONFIGS[@]}; do
             --polarity 0 \
             --std  \
             --output  \
-            --outFile $OUTPUT_FILE \
+            -o $OUTPUT_FILE \
 
 done
 
@@ -191,7 +191,7 @@ for param in ${PARAM_CONFIGS[@]}; do
             --polarity 1 \
             --std  \
             --output  \
-            --outFile $OUTPUT_FILE \
+            -o $OUTPUT_FILE \
 
 done
 '

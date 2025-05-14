@@ -22,7 +22,7 @@
 #                     script to generate multiple figures                      #
 ################################################################################
 
-PLOT_LATENCY_PROGRAM=./plot_latency.py
+PLOT_LATENCY_PROGRAM=../plot/plot_latency.py
 INPUT_DIR=$1
 OUTPUT_DIR=${INPUT_DIR}_size_roi_result
 
@@ -37,9 +37,9 @@ for param in ${PARAM_CONFIGS[@]}; do
             --mode mul \
             --polarity ${param} \
             --output  \
-            --outFile $OUTPUT_FILE \
+            -o $OUTPUT_FILE \
 
-         echo "Executed: "$PLOT_LATENCY_PROGRAM $INPUT_DIR" --mode mul --polarity "${param}$" --output --outFile "$OUTPUT_FILE
+         echo "Executed: "$PLOT_LATENCY_PROGRAM $INPUT_DIR" --mode mul --polarity "${param}$" --output -o "$OUTPUT_FILE
 
 done
 
