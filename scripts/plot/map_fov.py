@@ -30,13 +30,13 @@ def parse_args():
     parser = argparse.ArgumentParser("map_fov.py")
     parser.add_argument("output_directory")
     parser.add_argument("-o", "--output", default="out.png")
-    parser.add_argument("-k", type=int, default=1)
     parser.add_argument("--vmax", type=int)
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+    print(f"MAP: OUTPUT = {args.output}, VMAX = {args.vmax}")
     map_filename = args.output_directory + "/map.txt"
     roi_x, roi_y, roi_w, roi_h, maps = parse_map_file(map_filename)
     plot_map(args.output, maps, roi_x, roi_y, roi_w, roi_h, args.vmax)
@@ -88,12 +88,12 @@ def plot_map(output_file: str, maps: dict, roi_x: int, roi_y: int, roi_w: int,
             mean += map
             ax[polarity, idx].imshow(map, vmin=0, vmax=vmax)
 
-        mean /= len(maps[0])
+        mean /= len(maps[polarity])
         dead = np.zeros((roi_h, roi_w))
 
         for i in range(roi_h):
             for j in range(roi_w):
-                if mean[i, j] == -1:
+                if mean[i, j] < 0:
                     dead[i, j] = 1
                     print(f"dead pixel at (row = {i}, col = {j}).")
 
@@ -112,9 +112,8 @@ def plot_map(output_file: str, maps: dict, roi_x: int, roi_y: int, roi_w: int,
                  ax=[ax[r, c]
                       for r in range(nb_rows)
                       for c in range(nb_cols)]).set_label('Color Map')
-    plt.show()
-    # fig.set_size_inches(8, 6)
-    # plt.savefig(output_file, dpi=100)
+    fig.set_size_inches(8, 6)
+    plt.savefig(output_file, dpi=100)
 
 
 if __name__ == "__main__":
