@@ -22,7 +22,7 @@ export BIAS_REFR=0
 # use extra `#` to comment
 # /!\ no spaces allowed
 
-#bias:0=0;0;0;0;0;0
+#bias:zero=0;0;0;0;0;0
 
 # #bias:0.25MAX=0;47;35;0;0;0
 # #bias:0.50MAX=0;95;70;0;0;0
