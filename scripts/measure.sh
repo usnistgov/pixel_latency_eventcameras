@@ -82,7 +82,7 @@ yaml_dump_biases() {
         config=${BIAS_CONFIGS[$idx]}
         bias_config "$config" >/dev/null
         sub_dir="bias_${BIAS_DIFF}_${BIAS_DIFF_OFF}_${BIAS_DIFF_ON}_${BIAS_FO}_${BIAS_HPF}_${BIAS_REFR}"
-        echo "  $CONFIG_NAME: $sub_dir"
+        echo "  '$CONFIG_NAME': $sub_dir"
     done
 }
 
