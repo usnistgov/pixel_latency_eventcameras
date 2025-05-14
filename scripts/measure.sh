@@ -72,66 +72,56 @@ roi_config() {
 }
 
 ################################################################################
-#                             json file generation                             #
+#                             yaml file generation                             #
 ################################################################################
 
-json_dump_biases() {
-    echo "    \"bias_configs\":{"
+yaml_dump_biases() {
+    echo "bias_configs:"
     NB_ELTS=${#BIAS_CONFIGS[@]}
     for ((idx = 0; idx < NB_ELTS; idx += 1)); do
         config=${BIAS_CONFIGS[$idx]}
         bias_config "$config" >/dev/null
         sub_dir="bias_${BIAS_DIFF}_${BIAS_DIFF_OFF}_${BIAS_DIFF_ON}_${BIAS_FO}_${BIAS_HPF}_${BIAS_REFR}"
-        echo -n "        \"$CONFIG_NAME\":\"$sub_dir\""
-        [ $idx -eq $((NB_ELTS - 1)) ] && echo "" || echo ","
+        echo "  $CONFIG_NAME: $sub_dir"
     done
-    echo "    },"
 }
 
-json_dump_rois() {
-    echo "    \"roi_directories_names\":["
+yaml_dump_rois() {
+    echo "roi_directories_names:"
     local x_last=$((X_END - ROI_WIDTH))
     local y_last=$((Y_END - ROI_HEIGHT))
     for ((y = Y_START; y < Y_END; y += ROI_HEIGHT)); do
         for ((x = X_START; x < X_END; x += ROI_WIDTH)); do
-            echo -n "        \"${x}_${y}_${ROI_WIDTH}_${ROI_HEIGHT}\""
-            [ $y -eq $y_last ] && [ $x -eq $x_last ] && echo "" || echo ","
+            echo "- '${x}_${y}_${ROI_WIDTH}_${ROI_HEIGHT}'"
         done
     done
-    echo "    ],"
 }
 
-json_dump_irradiances() {
-    echo "    \"irradiance_configs\":{"
+yaml_dump_irradiances() {
+    echo "irradiance_configs:"
     NB_ELTS=${#IRRADIANCES[@]}
     for ((idx = 0; idx < NB_ELTS; idx += 1)); do
         irr=${IRRADIANCES[$idx]}
-        echo -n "        \"$irr\":\"irr_$irr\""
-        [ $idx -eq $((NB_ELTS - 1)) ] && echo "" || echo ","
+        echo "  '$irr': irr_$irr"
     done
-    echo "    },"
 }
 
-json_dump_multipixels() {
-    echo "    \"multi_pixel_latency_files\":{"
+yaml_dump_multipixels() {
+    echo "multi_pixel_latency_files:"
     NB_ELTS=${#ROI_CONFIGS[@]}
     for ((idx = 0; idx < NB_ELTS; idx += 1)); do
         config=${ROI_CONFIGS[$idx]}
         roi_config "$config" >/dev/null
         sub_dir="roi_${X_START}_${Y_START}_${ROI_WIDTH}x${ROI_HEIGHT}"
-        echo -n "        \"$CONFIG_NAME\":\"$sub_dir\""
-        [ $idx -eq $((NB_ELTS - 1)) ] && echo "" || echo ","
+        echo "  '$CONFIG_NAME': $sub_dir"
     done
-    echo "    }"
 }
 
-create_json_config() {
-    echo "{"
-    json_dump_biases
-    json_dump_rois
-    json_dump_irradiances
-    json_dump_multipixels
-    echo "}"
+create_yaml_config() {
+    yaml_dump_biases
+    yaml_dump_rois
+    yaml_dump_irradiances
+    yaml_dump_multipixels
 }
 
 ################################################################################
@@ -196,7 +186,7 @@ interative_run_bias_measure() {
         run_bias_measure "$output_dir" "$irr"
         echo "JOB-INFO: measurement for irradiance $irr finished." >>$LOG_FILE
     done
-    create_json_config >"$output_dir/config.json"
+    create_yaml_config >>"$output_dir/config.yaml"
 }
 
 run_roi_measure() {
@@ -219,7 +209,7 @@ interative_run_roi_measure() {
     mkdir -p "$output_dir"
     echo "JOB-INFO: start ROI measurements." >$LOG_FILE
     run_roi_measure "$output_dir"
-    create_json_config >"$output_dir/config.json"
+    create_yaml_config >>"$output_dir/config.yaml"
 }
 
 ################################################################################

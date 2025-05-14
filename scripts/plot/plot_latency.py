@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 from pathlib import Path
-import json
+import yaml
 import os
 
 # ./plot_latency.py ./no_backlight -m lrb -i 0.01
@@ -713,8 +713,8 @@ def main():
         OUTPUT_FILE = "./test.png"
     print("DEBUG: OUTPUT_FLAG= ", OUTPUT_FLAG, ", OUTPUT_FILE=", OUTPUT_FILE)
 
-    with open(Path(args.latency_directory.split(",")[0]) / "config.json") as config_file:
-        config = json.load(config_file)
+    with open(Path(args.latency_directory.split(",")[0]) / "config.yaml") as config_file:
+        config = yaml.safe_load(config_file)
         BIAS_CONFIGS = config["bias_configs"]
         ROI_DIRECTORIES_NAMES = config["roi_directories_names"]
         IRRADIANCE_CONFIGS = config["irradiance_configs"]
