@@ -72,6 +72,10 @@ void init_camera(Metavision::Camera &cam, EventAnalyzer &event_analyzer,
     } else {
         config.window.width = cam.geometry().width();
         config.window.height = cam.geometry().height();
+        WARN("No roi size provided, default to full fov.");
+        DBG(config.window.width);
+        DBG(config.window.height);
+        event_analyzer.window(config.window);
     }
 
     cam.cd().add_callback(PROCESS_EVENTS(event_analyzer));

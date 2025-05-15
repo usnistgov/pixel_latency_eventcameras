@@ -128,6 +128,7 @@ class EventAnalyzer {
 
     size_t record_time() const { return record_time_; }
     Metavision::Roi::Window window() const { return window_; }
+    void window(Metavision::Roi::Window window) { this->window_ = window; }
     Metavision::timestamp max_timestamp() const { return curr_timestamp_; }
 
     size_t point_1d(Point point) const {
