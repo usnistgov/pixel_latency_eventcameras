@@ -370,10 +370,10 @@ def plot_latency(latencies: dict,
 def plot_latency_roi_bias(latency_directory: str, args: object):
     """Plot latency per ROI over bias configurations."""
     latencies = get_latencies_roi_bias(latency_directory,
-                                       IRRADIANCE_CONFIGS[irradiance])
+                                       IRRADIANCE_CONFIGS[args.irradiance])
     plot_latency(
-        latencies, BIAS_CONFIGS.keys(), stddev,
-        f"Latency for events of polarity 0 and 1 / bias configuration (irradiance = {irradiance} W/m2)",
+        latencies, BIAS_CONFIGS.keys(), args.stddev,
+        f"Latency for events of polarity 0 and 1 / bias configuration (irradiance = {args.irradiance} W/m2)",
         "event latency per ROI / bias configurations", "bias configurations",
         "latency (us)")
     create_image(args)
