@@ -24,7 +24,7 @@ set -euo pipefail
 #                                configuration                                 #
 ################################################################################
 
-LATENCY_PROGRAM=../../build/event_camera_latency_program
+LATENCY_PROGRAM=../../../build/event_camera_latency_program
 CONFIG_FILE="$1"
 LOG_FILE=~/log.txt
 declare -a IRRADIANCES=()
@@ -88,13 +88,15 @@ yaml_dump_biases() {
 
 yaml_dump_rois() {
     echo "roi_directories_names:"
-    local x_last=$((X_END - ROI_WIDTH))
-    local y_last=$((Y_END - ROI_HEIGHT))
-    for ((y = Y_START; y < Y_END; y += ROI_HEIGHT)); do
-        for ((x = X_START; x < X_END; x += ROI_WIDTH)); do
-            echo "- '${x}_${y}_${ROI_WIDTH}_${ROI_HEIGHT}'"
+    if [ $ROI_WIDTH -eq 0 ] && [ $ROI_HEIGHT -eq 0 ]; then
+        echo "- '0_0_0_0'"
+    else
+        for ((y = Y_START; y < Y_END; y += ROI_HEIGHT)); do
+            for ((x = X_START; x < X_END; x += ROI_WIDTH)); do
+                echo "- '${x}_${y}_${ROI_WIDTH}_${ROI_HEIGHT}'"
+            done
         done
-    done
+    fi
 }
 
 yaml_dump_irradiances() {
@@ -129,6 +131,7 @@ create_yaml_config() {
 ################################################################################
 
 run_latency_program() {
+    echo "$ROI_WIDTH $ROI_HEIGHT"
     $LATENCY_PROGRAM -o "$1" \
         --record-time "$RECORD_TIME" \
         --window-x "$2" --window-y "$3" \
@@ -155,13 +158,21 @@ measure_latency() {
 
     echo "measure: $dir"
 
-    for ((y = Y_START; y < Y_END; y += ROI_HEIGHT)); do
-        for ((x = X_START; x < X_END; x += ROI_WIDTH)); do
-            roi_dir="$dir/${x}_${y}_${ROI_WIDTH}_${ROI_HEIGHT}"
-            mkdir -p "$roi_dir"
-            run_latency_program "$roi_dir" "$x" "$y"
+    # if the width and height of the ROI are 0, the latency program will default
+    # to the full fov
+    if [ $ROI_WIDTH -eq 0 ] && [ $ROI_HEIGHT -eq 0 ]; then
+        roi_dir="$dir/0_0_${ROI_WIDTH}_${ROI_HEIGHT}"
+        mkdir -p "$roi_dir"
+        run_latency_program "$roi_dir" 0 0
+    else
+        for ((y = Y_START; y < Y_END; y += ROI_HEIGHT)); do
+            for ((x = X_START; x < X_END; x += ROI_WIDTH)); do
+                roi_dir="$dir/${x}_${y}_${ROI_WIDTH}_${ROI_HEIGHT}"
+                mkdir -p "$roi_dir"
+                run_latency_program "$roi_dir" "$x" "$y"
+            done
         done
-    done
+    fi
 }
 
 run_bias_measure() {
