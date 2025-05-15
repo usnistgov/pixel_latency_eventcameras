@@ -22,7 +22,7 @@ export BIAS_REFR=1500
 # use extra `#` to comment
 # /!\ no spaces allowed
 
-#bias:zero=299;384;222;1477;1488;1500
+#bias:zero=299;222;384;1477;1488;1500
 #bias:0.25MAX=299;167;437;1477;1488;1500
 #bias:0.50MAX=299;184;453;1477;1488;1500
 #bias:0.75MAX=299;200;468;1477;1488;1500
