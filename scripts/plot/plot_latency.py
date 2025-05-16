@@ -421,7 +421,7 @@ def plot_map(latency_directory: str, args: object):
     dir = Path(latency_directory)
     fig, ax = plt.subplots(len(IRRADIANCE_CONFIGS.keys()),
                            len(BIAS_CONFIGS.keys()),
-                           squeeze=False)
+                           squeeze=False, sharex=True, sharey=True)
     for irr_idx, irr in enumerate(IRRADIANCE_CONFIGS):
         for bias_idx, bias in enumerate(BIAS_CONFIGS):
             latencies = np.zeros((width, height))
@@ -451,6 +451,12 @@ def plot_map(latency_directory: str, args: object):
         fig.suptitle("Stdev of latency per ROI")
     else:
         fig.suptitle("Average latency per ROI")
+
+    norm = mpl.colors.Normalize(vmin=0, vmax=vmax)
+    cmap = plt.cm.viridis #plt.cm.RdBu
+    ax = [ax[r, c] for r in range(len(ROI_DIRECTORIES.keys()))
+          for c in range(len(BIAS_CONFIGS.keys()))]
+    fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax).set_label('Color Map')
 
     create_image(args)
 
@@ -503,11 +509,11 @@ def plot_map_roi(latency_directory: str, args: object):
     value_min = np.min(latencies)
     value_max = np.max(latencies)
     print("DEBUG: value_min:", value_min, " value_max:", value_max)
-    norm = mpl.colors.Normalize(vmin=value_min, vmax=vmax)
+    norm = mpl.colors.Normalize(vmin=0, vmax=vmax)
     cmap = plt.cm.viridis #plt.cm.RdBu
-    # cax=plt.axes: the meaning of the numbers
-    # 0.85 (left to right), 0.1 (top to bottom), 0.075 (width/thickness), 0.8 (height)
-    fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap),cax=plt.axes([0.916, 0.114, 0.02, 0.762])).set_label('Color Map')
+    ax = [ax[r, c] for r in range(len(ROI_DIRECTORIES.keys()))
+          for c in range(len(BIAS_CONFIGS.keys()))]
+    fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax).set_label('Color Map')
     create_image(args)
 
 
