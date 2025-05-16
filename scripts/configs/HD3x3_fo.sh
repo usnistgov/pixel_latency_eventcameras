@@ -3,8 +3,8 @@ export ROI_WIDTH=10        # ROI width
 export ROI_HEIGHT=10       # ROI height
 export X_ITER=3            # number of ROIs on X
 export Y_ITER=3            # number of ROIs on Y
-export X_START=400
-export Y_START=400
+export X_START=625
+export Y_START=345
 
 # default biases values
 export BIAS_DIFF=0
