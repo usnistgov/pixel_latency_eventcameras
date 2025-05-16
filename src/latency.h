@@ -35,6 +35,8 @@
 #include <vector>
 
 using delay_t = int64_t;
+using delays_t = std::vector<delay_t>;
+using counts_t = std::vector<std::pair<size_t, size_t>>;
 
 struct LatencyInfo {
     double mean = 0;
@@ -44,7 +46,8 @@ struct LatencyInfo {
     double median = 0;
     size_t p0_count;
     size_t p1_count;
-    std::vector<delay_t> map;
+    delays_t latency_map;
+    counts_t count_map;
 };
 
 struct LatencyInfos {
@@ -59,5 +62,6 @@ LatencyInfos get_latency_infos(EventAnalyzer const &event_analyzer,
                                TriggerAnalyzer const &trigger_analyzer);
 void dump_latency(LatencyInfos const &infos, std::string const &filename);
 void dump_latency_maps(LatencyInfos const &infos, std::string const &filename);
+void dump_count_maps(LatencyInfos const &infos, std::string const &filename);
 
 #endif

@@ -107,6 +107,7 @@ void dump(Config const &config, EventAnalyzer const &event_analyzer,
     }
     if (config.dump_map) {
         dump_latency_maps(infos, output_directory + "/map.txt");
+        dump_count_maps(infos, output_directory + "/count_map.txt");
     }
     if (config.dump_counts) {
         event_analyzer.dump_events_counts(output_directory + "/counts.txt");

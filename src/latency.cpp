@@ -35,8 +35,8 @@
 /**
  * @brief Compute informations about the latency.
  */
-LatencyInfo compute_latency(std::vector<delay_t> const &delays, size_t p0_count,
-                            size_t p1_count) {
+LatencyInfo compute_latency(delays_t &&delays, counts_t &&counts,
+                            size_t p0_count, size_t p1_count) {
     std::vector<delay_t> values = {};
 
     // filter non active events
@@ -47,7 +47,7 @@ LatencyInfo compute_latency(std::vector<delay_t> const &delays, size_t p0_count,
     }
 
     if (values.size() == 0) {
-        return {0, 0, 0, 0, 0, p1_count, p1_count, delays};
+        return {0, 0, 0, 0, 0, p1_count, p1_count, delays, counts};
     }
 
     double sum =
@@ -70,8 +70,26 @@ LatencyInfo compute_latency(std::vector<delay_t> const &delays, size_t p0_count,
         .median = (double)values[values.size() / 2],
         .p0_count = p0_count,
         .p1_count = p1_count,
-        .map = delays,
+        .latency_map = delays,
+        .count_map = counts,
     };
+}
+
+size_t insert_infos(EventAnalyzer const &event_analyzer, int16_t polarity,
+                    auto &event_delays, auto &event_counts, auto const &points,
+                    delay_t delay) {
+    for (auto point : points) {
+        size_t p = event_analyzer.point_1d(point);
+        if (event_delays[p] == -1) {
+            event_delays[p] = delay;
+        }
+        if (polarity == 0) {
+            event_counts[p].first++;
+        } else {
+            event_counts[p].second++;
+        }
+    }
+    return points.size();
 }
 
 /**
@@ -84,21 +102,11 @@ LatencyInfos get_latency_infos(EventAnalyzer const &event_analyzer,
     size_t window_size = infos.roi.width * infos.roi.height;
     auto events = event_analyzer.events();
     auto triggers = trigger_analyzer.triggers();
-    auto insert_delay = [&](auto &event_delays, auto const &points,
-                            delay_t delay) {
-        for (auto point : points) {
-            size_t p = event_analyzer.point_1d(point);
-            if (event_delays[p] == -1) {
-                event_delays[p] = delay;
-            }
-        }
-        return points.size();
-    };
 
     for (size_t trigger_idx = 0; trigger_idx < triggers.size(); ++trigger_idx) {
-        std::vector<delay_t> delays0(window_size, -1);
-        std::vector<delay_t> delays1(window_size, -1);
-        size_t count0 = 0, count1 = 0;
+        delays_t delays0(window_size, -1), delays1(window_size, -1);
+        counts_t counts(window_size, {0, 0});
+        size_t nb_off_events = 0, nb_on_events = 0;
         auto trigger = triggers.at(trigger_idx);
         auto event = events.find(trigger.timestamp);
         auto next_trigger_timestamp = event_analyzer.max_timestamp();
@@ -108,14 +116,19 @@ LatencyInfos get_latency_infos(EventAnalyzer const &event_analyzer,
 
         while (event != events.end() && event->first < next_trigger_timestamp) {
             auto delay = event->first - trigger.timestamp;
-            count0 += insert_delay(delays0, event->second.points0, delay);
-            count1 += insert_delay(delays1, event->second.points1, delay);
+            nb_off_events += insert_infos(event_analyzer, 0, delays0, counts,
+                                          event->second.points0, delay);
+            nb_on_events += insert_infos(event_analyzer, 1, delays1, counts,
+                                         event->second.points1, delay);
             event++;
         }
         infos.stimuli.insert(
-            {trigger, (trigger.polarity == 0)
-                          ? compute_latency(delays0, count0, count1)
-                          : compute_latency(delays1, count0, count1)});
+            {trigger,
+             (trigger.polarity == 0)
+                 ? compute_latency(std::move(delays0), std::move(counts),
+                                   nb_off_events, nb_on_events)
+                 : compute_latency(std::move(delays1), std::move(counts),
+                                   nb_off_events, nb_on_events)});
     }
     return infos;
 }
@@ -158,8 +171,30 @@ void dump_latency_maps(LatencyInfos const &infos, std::string const &filename) {
 
     for (auto stimulus : infos.stimuli) {
         fs << stimulus.first.polarity;
-        for (auto delay : stimulus.second.map) {
+        for (auto delay : stimulus.second.latency_map) {
             fs << " " << delay;
+        }
+        fs << std::endl;
+    }
+}
+
+/**
+ * @brief Dump activation count for each pixels in the following format:
+ *        roi_x roi_y roi_w roi_h
+ *        ...
+ *        polarity nv_off:nb_on ...
+ *        ...
+ */
+void dump_count_maps(LatencyInfos const &infos, std::string const &filename) {
+    std::ofstream fs(filename);
+
+    fs << infos.roi.x << " " << infos.roi.y << " " << infos.roi.width << " "
+       << infos.roi.height << std::endl;
+
+    for (auto stimulus : infos.stimuli) {
+        fs << stimulus.first.polarity;
+        for (auto count : stimulus.second.count_map) {
+            fs << " " << count.first << ":" << count.second;
         }
         fs << std::endl;
     }
