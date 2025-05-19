@@ -51,6 +51,7 @@ class MapInfos:
         self.mean_count_map = [None, None]
         self.frozen_pixels_map = [None, None]
         self.hot_pixels_map = [None, None]
+        self.cold_pixels_map = [None, None]
 
 
 def parse_args():
@@ -122,10 +123,19 @@ def parse_map_files(output_directory: str) -> MapInfos:
 def analyze_latency_maps(map_infos: MapInfos, polarity: int,
                          nb_samples: int = 10):
     mean_map = np.zeros(map_infos.height * map_infos.width)
+    map_infos.cold_pixels_map[polarity] = np.zeros((map_infos.height,
+                                                   map_infos.width))
 
     for map in map_infos.latency_maps[polarity][:nb_samples]:
         mean_map += map
-    mean_map /= len(map_infos.latency_maps[polarity][:nb_samples])
+        cold_threshold = np.mean(map) * 10
+        for i, px in enumerate(map):
+            if px > cold_threshold:
+                row, col = i // map_infos.width, i % map_infos.width
+                map_infos.cold_pixels_map[polarity][row, col] += 1
+
+    size = len(map_infos.latency_maps[polarity][:nb_samples])
+    mean_map /= size
 
     map_infos.mean_latency_map[polarity] = mean_map
     map_infos.mean_latency[polarity] = np.mean(mean_map)
@@ -142,14 +152,13 @@ def analyze_latency_maps(map_infos: MapInfos, polarity: int,
     frozen_count = 0
     map_infos.frozen_pixels_map[polarity] = np.zeros((map_infos.height,
                                                       map_infos.width))
-
     for i, px in enumerate(mean_map):
         row, col = i // map_infos.width, i % map_infos.width
         if px < 0:
             frozen_count += 1
             map_infos.frozen_pixels_map[polarity][row, col] = 1
             print(f"Frozen pixel at (row = {row}, col = {col}).")
-        elif px < (map_infos.mean_latency[polarity] / 10):
+        elif map_infos.cold_pixels_map[polarity][row, col] > 0.8 * size:
             print(f"Cold pixels at (row = {row}, col = {col}).")
     frozen_percentage = 100 * frozen_count / (map_infos.width * map_infos.height)
     print(f"Frozen pixels: {frozen_count} ({frozen_percentage})")
