@@ -26,6 +26,33 @@ import argparse
 from matplotlib.colors import LinearSegmentedColormap
 
 
+class MapInfos:
+    def __init__(self):
+        self.width = 0
+        self.height = 0
+        # statistics
+        ## latency
+        self.mean_latency = [0, 0]
+        self.std_latency = [0, 0]
+        self.median_latency = [0, 0]
+        self.min_latency = [0, 0]
+        self.max_latency = [0, 0]
+        ## event count
+        self.mean_count = [0, 0]
+        self.std_count = [0, 0]
+        self.median_count = [0, 0]
+        self.min_count = [0, 0]
+        self.max_count = [0, 0]
+        # maps parsed from C++ program output files
+        self.latency_maps = [[], []]
+        self.count_maps = [[], []]
+        # statistic maps
+        self.mean_latency_map = [None, None]
+        self.mean_count_map = [None, None]
+        self.frozen_pixels_map = [None, None]
+        self.hot_pixels_map = [None, None]
+
+
 def parse_args():
     parser = argparse.ArgumentParser("map_fov.py")
     parser.add_argument("output_directory")
@@ -38,10 +65,13 @@ def parse_args():
 def main():
     args = parse_args()
     print(f"MAP: OUTPUT = {args.output}, VMAX = {args.vmax}")
-    map_filename = args.output_directory + "/map.txt"
-    roi_x, roi_y, roi_w, roi_h, maps = parse_map_file(map_filename)
-    plot_map(args.output, maps, roi_w, roi_h, args.vmax,
-             args.plot_all)
+    map_infos = parse_map_files(args.output_directory)
+
+    print(f"Number of polarity 0 measurments: {len(map_infos.latency_maps[0])}")
+    print(f"Number of polarity 1 measurments: {len(map_infos.latency_maps[1])}")
+
+    plot_latency_map(args.output, map_infos, args.vmax, args.plot_all)
+    plot_count_map(args.output, map_infos, args.plot_all)
 
 
 def create_pixel_map(values: list, width: int, height: int) -> npt.NDArray[int]:
@@ -53,93 +83,199 @@ def create_pixel_map(values: list, width: int, height: int) -> npt.NDArray[int]:
     return pixels
 
 
-def parse_map_file(filename: str) -> (int, int, int, int, dict):
-    roi_x, roi_y, roi_w, roi_h = 0, 0, 0, 0
-    maps = {0: [], 1: []}
+def parse_map_files(output_directory: str) -> MapInfos:
+    latency_map_file = output_directory + "/map.txt"
+    count_map_file = output_directory + "/count_map.txt"
+    map_infos = MapInfos()
 
-    with open(filename) as file:
+    with open(latency_map_file) as file:
         line = file.readline()
         fields = line.split(" ")
-        roi_x, roi_y = int(fields[0]), int(fields[1])
-        roi_w, roi_h = int(fields[2]), int(fields[3])
+        _, _ = int(fields[0]), int(fields[1])
+        width, height = int(fields[2]), int(fields[3])
+        map_infos.width = width
+        map_infos.height = height
 
         for line in file:
             fields = line.split(" ")
             polarity = int(fields[0])
-            map = create_pixel_map(fields[1:], roi_w, roi_h)
-            maps[polarity].append(map)
+            map = create_pixel_map(fields[1:], width, height)
+            map_infos.latency_maps[polarity].append(map)
 
-    return roi_x, roi_y, roi_w, roi_h, maps
+    with open(count_map_file) as file:
+        line = file.readline()  # skip infos
 
-def plot_polarity(ax: object, maps: dict, roi_w: int, roi_h: int, polarity: int,
-                  vmax: int, plot_all: bool):
-    print(f"plot polarity {polarity}...")
-    mean_map = np.zeros(roi_h * roi_w)
-    for idx, map in enumerate(maps[polarity]):
+        for line in file:
+            fields = line.split(" ")
+            polarity = int(fields[0])
+            map = create_pixel_map([c.split(':')[polarity] for c in fields[1:]],
+                                   width, height)
+            map_infos.count_maps[polarity].append(map)
+
+    return map_infos
+
+
+###############################################################################
+#                                   latency                                   #
+###############################################################################
+
+def analyze_latency_maps(map_infos: MapInfos, polarity: int,
+                         nb_samples: int = 10):
+    mean_map = np.zeros(map_infos.height * map_infos.width)
+
+    for map in map_infos.latency_maps[polarity][:nb_samples]:
         mean_map += map
-        if plot_all:
-            ax[polarity, idx].imshow(map.reshape((roi_h, roi_w)), vmin=0, vmax=vmax)
+    mean_map /= len(map_infos.latency_maps[polarity][:nb_samples])
 
-    mean_map /= len(maps[polarity])
-    mean_latency = np.mean(mean_map)
-    std_latency = np.std(mean_map)
-    median_latency = np.median(mean_map)
+    map_infos.mean_latency_map[polarity] = mean_map
+    map_infos.mean_latency[polarity] = np.mean(mean_map)
+    map_infos.std_latency[polarity] = np.std(mean_map)
+    map_infos.median_latency[polarity] = np.median(mean_map)
+    map_infos.min_latency[polarity] = np.min(mean_map)
+    map_infos.max_latency[polarity] = np.max(mean_map)
 
-    print(f"- mean latency = {mean_latency} +- {std_latency}")
-    print(f"- median latency = {median_latency}")
-    print(f"- min latency = {np.min(mean_map)}")
-    print(f"- max latency = {np.max(mean_map)}")
+    print(f"- mean latency = {map_infos.mean_latency[polarity]} +- {map_infos.std_latency[polarity]}")
+    print(f"- median latency = {map_infos.median_latency[polarity]}")
+    print(f"- min latency = {map_infos.min_latency[polarity]}")
+    print(f"- max latency = {map_infos.max_latency[polarity]}")
 
-    dead_count = 0
-    faulty_pixels = np.zeros(roi_h * roi_w)
+    frozen_count = 0
+    map_infos.frozen_pixels_map[polarity] = np.zeros((map_infos.height,
+                                                      map_infos.width))
 
     for i, px in enumerate(mean_map):
-        row, col = i // roi_w, i % roi_w
+        row, col = i // map_infos.width, i % map_infos.width
         if px < 0:
-            dead_count += 1
-            faulty_pixels[i] = 1
-            print(f"Pixel at (row = {row}, col = {col}) generated no events during the measurment.")
-        elif px > (mean_latency + std_latency):
-            print(f"Pixel at (row = {row}, col = {col}) as a latency superior to the mean+std ({px} > {mean_latency + std_latency}).")
-        elif px > median_latency:
-            print(f"Pixel at (row = {row}, col = {col}) as a latency superior to the median ({px} > {median_latency}).")
+            frozen_count += 1
+            map_infos.frozen_pixels_map[polarity][row, col] = 1
+            print(f"Frozen pixel at (row = {row}, col = {col}).")
+        elif px < (map_infos.mean_latency[polarity] / 10):
+            print(f"Cold pixels at (row = {row}, col = {col}).")
+    frozen_percentage = 100 * frozen_count / (map_infos.width * map_infos.height)
+    print(f"Frozen pixels: {frozen_count} ({frozen_percentage})")
 
-    print(f"dead pixels: {dead_count} ({dead_count/(roi_w * roi_h)})")
+
+def plot_polarity_latency(ax: object, map_infos: MapInfos, polarity: int,
+                          vmax: int, plot_all: bool):
+    print(f"plot polarity {polarity}...")
+    analyze_latency_maps(map_infos, polarity)
+
+    if plot_all:
+        for idx, map in enumerate(map_infos.latency_maps):
+            ax[idx, 0].imshow(map.reshape((map_infos.height, map_infos.width)),
+                              vmin=0, vmax=vmax)
 
     colors = [(0, "white"), (1, "red")]
     cmap = LinearSegmentedColormap.from_list("falty_pixels", colors)
-    ax[polarity, -2].imshow(mean_map.reshape((roi_h, roi_w)), vmax=vmax)
-    ax[polarity, -2].set_xlabel("crazy pixels")
-    ax[polarity, -1].imshow(faulty_pixels.reshape((roi_h, roi_w)), cmap=cmap)
-    ax[polarity, -1].set_xlabel("dead pixels")
+    ax[polarity, -2].imshow(map_infos
+                              .mean_latency_map[polarity]
+                              .reshape((map_infos.height, map_infos.width)),
+                            vmax=vmax)
+    ax[polarity, -2].set_xlabel("Mean Latency")
+    ax[polarity, -1].imshow(map_infos.frozen_pixels_map[polarity], cmap=cmap)
+    ax[polarity, -1].set_xlabel("Frozen Pixels")
 
 
-def plot_map(output_file: str, maps: dict, roi_w: int, roi_h: int, vmax: int,
-             plot_all: bool = False):
+def plot_latency_map(output_file: str, map_infos: MapInfos, vmax: int,
+                     plot_all: bool = False):
     nb_rows = 2
-    nb_cols = max(len(maps[0]), len(maps[1])) if plot_all else 0
+    nb_cols = max(len(map_infos.latency_maps[0]),
+                  len(map_infos.latency_maps[1])) if plot_all else 0
     fig, ax = plt.subplots(nb_rows, nb_cols + 2, squeeze=False)
-
-    print(f"Number of polarity 0 measurments: {len(maps[0])}")
-    print(f"Number of polarity 1 measurments: {len(maps[1])}")
 
     ax[0, 0].set_ylabel("polarity 0")
     ax[1, 0].set_ylabel("polarity 1")
     fig.suptitle("Single pixel latency map.")
 
-    plot_polarity(ax, maps, roi_w, roi_h, 0, vmax, plot_all)
-    plot_polarity(ax, maps, roi_w, roi_h, 1, vmax, plot_all)
+    plot_polarity_latency(ax, map_infos, 0, vmax, plot_all)
+    plot_polarity_latency(ax, map_infos, 1, vmax, plot_all)
 
     norm = mpl.colors.Normalize(vmin=0, vmax=vmax)
-    cmap = plt.cm.viridis #plt.cm.RdBu
+    cmap = plt.cm.viridis  # plt.cm.RdBu
     if plot_all:
         ax = [ax[r, c] for r in range(nb_rows) for c in range(nb_cols)]
     else:
         ax = [ax[r, c] for r in range(nb_rows) for c in range(2)]
     fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax).set_label('Color Map')
-    # fig.set_size_inches(8, 6)
-    # plt.savefig(output_file, dpi=100)
-    plt.show()
+    fig.set_size_inches(8, 6)
+    plt.savefig("latency-" + output_file, dpi=100)
+
+
+###############################################################################
+#                                   counts                                    #
+###############################################################################
+
+def analyze_count_maps(map_infos: MapInfos, polarity: int,
+                       nb_samples: int = 10):
+    mean_map = np.zeros(map_infos.height * map_infos.width)
+
+    for map in map_infos.count_maps[polarity][:nb_samples]:
+        mean_map += map
+    mean_map /= len(map_infos.count_maps[polarity][:nb_samples])
+
+    map_infos.mean_count_map[polarity] = mean_map
+    map_infos.mean_count[polarity] = np.mean(mean_map)
+    map_infos.std_count[polarity] = np.std(mean_map)
+    map_infos.median_count[polarity] = np.median(mean_map)
+    map_infos.min_count[polarity] = np.min(mean_map)
+    map_infos.max_count[polarity] = np.max(mean_map)
+
+    print(f"- mean count = {map_infos.mean_count[polarity]} +- {map_infos.std_count[polarity]}")
+    print(f"- median count = {map_infos.median_count[polarity]}")
+    print(f"- min count = {map_infos.min_count[polarity]}")
+    print(f"- max count = {map_infos.max_count[polarity]}")
+
+    map_infos.hot_pixels_map[polarity] = np.zeros((map_infos.height,
+                                                  map_infos.width))
+    for i, px in enumerate(mean_map):
+        row, col = i // map_infos.width, i % map_infos.width
+        if px > (map_infos.median_count[polarity] * 100):
+            map_infos.hot_pixels_map[polarity][row, col]
+            print(f"Hot pixel at (row = {row}, col = {col}).")
+
+
+def plot_polarity_count(ax: object, map_infos: MapInfos, polarity: int,
+                        plot_all: bool = False):
+    print(f"plot polarity {polarity}...")
+    analyze_count_maps(map_infos, polarity)
+
+    if plot_all:
+        for idx, map in enumerate(map_infos.count_maps):
+            ax[idx, 0].imshow(map.reshape((map_infos.height, map_infos.width)))
+
+    colors = [(0, "white"), (1, "red")]
+    cmap = LinearSegmentedColormap.from_list("falty_pixels", colors)
+    mean_map = map_infos.mean_latency_map[polarity].reshape((map_infos.height,
+                                                             map_infos.width))
+    ax[polarity, -2].imshow(mean_map)
+    ax[polarity, -2].set_xlabel("Mean Count")
+    ax[polarity, -1].imshow(map_infos.hot_pixels_map[polarity], cmap = cmap)
+    ax[polarity, -1].set_xlabel("Hot Pixels")
+
+
+def plot_count_map(output_file: str, map_infos: MapInfos, plot_all: bool = False):
+    nb_rows = 2
+    nb_cols = max(len(map_infos.count_maps[0]),
+                  len(map_infos.count_maps[1])) if plot_all else 0
+    fig, ax = plt.subplots(nb_rows, nb_cols + 2, squeeze=False)
+
+    ax[0, 0].set_ylabel("polarity 0")
+    ax[1, 0].set_ylabel("polarity 1")
+    fig.suptitle("Single pixel count map.")
+
+    plot_polarity_count(ax, map_infos, 0, plot_all)
+    plot_polarity_count(ax, map_infos, 1, plot_all)
+
+    vmax = max(map_infos.max_count[0], map_infos.max_count[1])
+    norm = mpl.colors.Normalize(vmin=0, vmax=vmax)
+    cmap = plt.cm.viridis  # plt.cm.RdBu
+    if plot_all:
+        ax = [ax[r, c] for r in range(nb_rows) for c in range(nb_cols)]
+    else:
+        ax = [ax[r, c] for r in range(nb_rows) for c in range(2)]
+    fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax).set_label('Color Map')
+    fig.set_size_inches(8, 6)
+    plt.savefig("count-" + output_file, dpi=100)
 
 
 if __name__ == "__main__":
