@@ -207,7 +207,7 @@ def plot_latency_map(output_file: str, map_infos: MapInfos, vmax: int,
         ax = [ax[r, c] for r in range(nb_rows) for c in range(2)]
     fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax).set_label('Color Map')
     fig.set_size_inches(8, 6)
-    plt.savefig("latency-" + output_file, dpi=100)
+    plt.savefig(output_file + "-latency.png", dpi=100)
 
 
 ###############################################################################
@@ -240,7 +240,7 @@ def analyze_count_maps(map_infos: MapInfos, polarity: int,
         row, col = i // map_infos.width, i % map_infos.width
         if px > (map_infos.median_count[polarity] * 100):
             map_infos.hot_pixels_map[polarity][row, col]
-            print(f"Hot pixel at (row = {row}, col = {col}).")
+            print(f"Hot pixel at (row = {row}, col = {col}); average rate = {px}.")
 
 
 def plot_polarity_count(ax: object, map_infos: MapInfos, polarity: int,
@@ -284,7 +284,7 @@ def plot_count_map(output_file: str, map_infos: MapInfos, plot_all: bool = False
         ax = [ax[r, c] for r in range(nb_rows) for c in range(2)]
     fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax).set_label('Color Map')
     fig.set_size_inches(8, 6)
-    plt.savefig("count-" + output_file, dpi=100)
+    plt.savefig(output_file + "-count.png", dpi=100)
 
 
 if __name__ == "__main__":
