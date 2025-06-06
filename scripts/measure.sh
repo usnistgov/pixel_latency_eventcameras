@@ -143,7 +143,7 @@ run_latency_program() {
         --bias-fo "$BIAS_FO" \
         --bias-hpf "$BIAS_HPF" \
         --bias-refr "$BIAS_REFR" \
-        --dump-latency \
+        --dump-stats \
         --dump-map \
         --slave
 }
