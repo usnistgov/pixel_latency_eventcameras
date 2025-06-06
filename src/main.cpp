@@ -99,14 +99,15 @@ void run_camera(Metavision::Camera &cam, EventAnalyzer &event_analyzer) {
 void dump(Config const &config, EventAnalyzer const &event_analyzer,
           TriggerAnalyzer const &trigger_analyzer) {
     INFO("dumping data...");
-    LatencyInfos infos = get_latency_infos(event_analyzer, trigger_analyzer);
+    MeasurementInfos infos = get_measurement_infos(event_analyzer, trigger_analyzer);
     std::string output_directory = config.output_directory;
 
-    if (config.dump_latency) {
-        dump_latency(infos, output_directory + "/latency.txt");
+    if (config.dump_stats) {
+        dump_latency_stats(infos, output_directory + "/latency.txt");
+        dump_count_stats(infos, output_directory + "/count.txt");
     }
     if (config.dump_map) {
-        dump_latency_maps(infos, output_directory + "/map.txt");
+        dump_latency_maps(infos, output_directory + "/latency_map.txt");
         dump_count_maps(infos, output_directory + "/count_map.txt");
     }
     if (config.dump_counts) {

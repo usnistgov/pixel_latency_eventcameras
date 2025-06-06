@@ -44,7 +44,7 @@ class Config {
         parser.add_argument("--bias-hpf").default_value(0).store_into(bias_hpf).help("bias_hpf");
         parser.add_argument("--bias-refr").default_value(0).store_into(bias_refr).help("bias_refr");
 
-        parser.add_argument("--dump-latency").flag().store_into(dump_latency).help("dump latency (latency.txt).");
+        parser.add_argument("--dump-stats").flag().store_into(dump_stats).help("dump latency (latency.txt).");
         parser.add_argument("--dump-map").flag().store_into(dump_map).help("dump per pixel latency (map.txt).");
         parser.add_argument("--dump-counts").flag().store_into(dump_counts).help("dump event count per timestamp (counts.txt).");
         parser.add_argument("--dump-position").flag().store_into(dump_positions).help("dump all events positions (warn: can generate a heavy file) (positions.txt).");
@@ -66,9 +66,9 @@ class Config {
                   .y = window_y,
                   .width = window_width,
                   .height = window_height};
-        if (!dump_latency && !dump_map && !dump_counts && !dump_positions &&
+        if (!dump_stats && !dump_map && !dump_counts && !dump_positions &&
             !dump_triggers) {
-            dump_latency = true; // default on dump latency
+            dump_stats = true; // default on dump latency
         }
     }
 
@@ -81,7 +81,7 @@ class Config {
     int window_height = 0;
     bool slave = false;
 
-    bool dump_latency = true;
+    bool dump_stats = true;
     bool dump_map = false;
     bool dump_counts = false;
     bool dump_positions = false;

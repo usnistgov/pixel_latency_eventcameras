@@ -35,33 +35,45 @@
 #include <vector>
 
 using delay_t = int64_t;
+using count_t = size_t;
 using delays_t = std::vector<delay_t>;
-using counts_t = std::vector<std::pair<size_t, size_t>>;
+using counts_t = std::vector<std::pair<count_t, count_t>>;
 
-struct LatencyInfo {
+struct Stats {
     double mean = 0;
     double stddev = 0;
     double min = 0;
     double max = 0;
     double median = 0;
+};
+
+struct MeasurementInfo {
+    Stats latency_stats;
+    Stats count0_stats;
+    Stats count1_stats;
     size_t p0_count;
     size_t p1_count;
     delays_t latency_map;
     counts_t count_map;
 };
 
-struct LatencyInfos {
+struct MeasurementInfos {
     Metavision::Roi::Window roi;
-    std::map<Trigger, LatencyInfo> stimuli;
+    std::map<Trigger, MeasurementInfo> stimuli;
 };
 
 class EventAnalyzer;
 class TriggerAnalyzer;
 
-LatencyInfos get_latency_infos(EventAnalyzer const &event_analyzer,
-                               TriggerAnalyzer const &trigger_analyzer);
-void dump_latency(LatencyInfos const &infos, std::string const &filename);
-void dump_latency_maps(LatencyInfos const &infos, std::string const &filename);
-void dump_count_maps(LatencyInfos const &infos, std::string const &filename);
+MeasurementInfos get_measurement_infos(EventAnalyzer const &event_analyzer,
+                                       TriggerAnalyzer const &trigger_analyzer);
+void dump_latency_stats(MeasurementInfos const &infos,
+                        std::string const &filename);
+void dump_count_stats(MeasurementInfos const &infos,
+                      std::string const &filename);
+void dump_latency_maps(MeasurementInfos const &infos,
+                       std::string const &filename);
+void dump_count_maps(MeasurementInfos const &infos,
+                     std::string const &filename);
 
 #endif

@@ -33,41 +33,45 @@
 #include <numeric>
 
 /**
- * @brief Compute informations about the latency.
+ * @brief Compute the mean, standard deviation, median, min and max of a range
+ * of values.
  */
-LatencyInfo compute_latency(delays_t &&delays, counts_t &&counts,
-                            size_t p0_count, size_t p1_count) {
-    std::vector<delay_t> values = {};
-
-    // filter non active events
-    for (auto delay : delays) {
-        if (delay != -1) {
-            values.emplace_back(delay);
-        }
-    }
-
-    if (values.size() == 0) {
-        return {0, 0, 0, 0, 0, p1_count, p1_count, delays, counts};
-    }
-
+template <template <typename> class Container, typename T>
+Stats compute_stats(Container<T> values) {
     double sum =
-        std::accumulate(values.begin(), values.end(), 0.0, std::plus<double>());
-    double mean = sum / delays.size();
+        std::accumulate(values.begin(), values.end(), 0.0, std::plus<T>());
+    double mean = sum / (double)values.size();
     double diff_sum = std::accumulate(values.begin(), values.end(), 0.0,
-                                      [mean](double acc, auto delay) {
-                                          double diff = delay - mean;
-                                          return acc + (diff * diff);
+                                      [mean](double acc, auto value) {
+                                          double diff = value - mean;
+                                          return acc + diff * diff;
                                       });
-    double stddev = std::sqrt(diff_sum / delays.size());
-
+    double stddev = std::sqrt(diff_sum / values.size());
     std::sort(values.begin(), values.end());
+    return {mean, stddev, (double)values.front(), (double)values.back(),
+            (double)values[values.size() / 2]};
+}
+
+/**
+ * @brief Create latency infos from delays and event counts.
+ */
+MeasurementInfo compute_latency(delays_t &&delays, counts_t &&counts,
+                                size_t p0_count, size_t p1_count) {
+    std::vector<delay_t> delay_values;
+    std::vector<count_t> count0_values(counts.size());
+    std::vector<count_t> count1_values(counts.size());
+
+    for (size_t i = 0; i < delays.size(); ++i) {
+        if (delays[i] > 0)
+            delay_values.push_back(delays[i]);
+        count0_values[i] = counts[i].first;
+        count1_values[i] = counts[i].second;
+    }
 
     return {
-        .mean = mean,
-        .stddev = stddev,
-        .min = (double)values.front(),
-        .max = (double)values.back(),
-        .median = (double)values[values.size() / 2],
+        .latency_stats = compute_stats(delay_values),
+        .count0_stats = compute_stats(count0_values),
+        .count1_stats = compute_stats(count1_values),
         .p0_count = p0_count,
         .p1_count = p1_count,
         .latency_map = delays,
@@ -94,11 +98,12 @@ size_t insert_infos(EventAnalyzer const &event_analyzer, int16_t polarity,
 
 /**
  * @brief Compute latency information for all the events that have been
- * generated after each trigger.
+ *        generated after each trigger.
  */
-LatencyInfos get_latency_infos(EventAnalyzer const &event_analyzer,
-                               TriggerAnalyzer const &trigger_analyzer) {
-    LatencyInfos infos(event_analyzer.window(), {});
+MeasurementInfos
+get_measurement_infos(EventAnalyzer const &event_analyzer,
+                      TriggerAnalyzer const &trigger_analyzer) {
+    MeasurementInfos infos(event_analyzer.window(), {});
     size_t window_size = infos.roi.width * infos.roi.height;
     auto events = event_analyzer.events();
     auto triggers = trigger_analyzer.triggers();
@@ -134,10 +139,11 @@ LatencyInfos get_latency_infos(EventAnalyzer const &event_analyzer,
 }
 
 /**
- * @brief Dump latency informations for each trigger in the following format:
+ * @brief Dump latency stats for each trigger in the following format:
  *        polarity;mean;stddev;min;max;median;nb0;nb1
  */
-void dump_latency(LatencyInfos const &infos, std::string const &filename) {
+void dump_latency_stats(MeasurementInfos const &infos,
+                        std::string const &filename) {
     std::ofstream fs(filename);
     constexpr char sep = ';';
 
@@ -145,13 +151,41 @@ void dump_latency(LatencyInfos const &infos, std::string const &filename) {
         auto trigger = stimulus.first;
         auto info = stimulus.second;
         fs << trigger.polarity << sep;
-        fs << info.mean << sep;
-        fs << info.stddev << sep;
-        fs << info.min << sep;
-        fs << info.max << sep;
-        fs << info.median << sep;
+        fs << info.latency_stats.mean << sep;
+        fs << info.latency_stats.stddev << sep;
+        fs << info.latency_stats.min << sep;
+        fs << info.latency_stats.max << sep;
+        fs << info.latency_stats.median << sep;
         fs << info.p0_count << sep;
         fs << info.p1_count << sep;
+        fs << std::endl;
+    }
+}
+
+/**
+ * @brief Dump event rate stats for each trigger in the following format:
+ *        polarity;mean0:1;stddev0:1;min0:1;max0:1;median0:1
+ */
+void dump_count_stats(MeasurementInfos const &infos,
+                      std::string const &filename) {
+    std::ofstream fs(filename);
+    constexpr char sep = ';';
+    constexpr char count_stat_sep = ':';
+
+    for (auto &stimulus : infos.stimuli) {
+        auto trigger = stimulus.first;
+        auto info = stimulus.second;
+        fs << trigger.polarity << sep;
+        fs << info.count0_stats.mean << count_stat_sep << info.count1_stats.mean
+           << sep;
+        fs << info.count0_stats.stddev << count_stat_sep
+           << info.count1_stats.stddev << sep;
+        fs << info.count0_stats.min << count_stat_sep << info.count1_stats.min
+           << sep;
+        fs << info.count0_stats.max << count_stat_sep << info.count1_stats.max
+           << sep;
+        fs << info.count0_stats.median << count_stat_sep
+           << info.count1_stats.median << sep;
         fs << std::endl;
     }
 }
@@ -163,7 +197,8 @@ void dump_latency(LatencyInfos const &infos, std::string const &filename) {
  *        polarity delay_pixel1 delay_pixel2 ...
  *        ...
  */
-void dump_latency_maps(LatencyInfos const &infos, std::string const &filename) {
+void dump_latency_maps(MeasurementInfos const &infos,
+                       std::string const &filename) {
     std::ofstream fs(filename);
 
     fs << infos.roi.x << " " << infos.roi.y << " " << infos.roi.width << " "
@@ -185,7 +220,8 @@ void dump_latency_maps(LatencyInfos const &infos, std::string const &filename) {
  *        polarity nv_off:nb_on ...
  *        ...
  */
-void dump_count_maps(LatencyInfos const &infos, std::string const &filename) {
+void dump_count_maps(MeasurementInfos const &infos,
+                     std::string const &filename) {
     std::ofstream fs(filename);
 
     fs << infos.roi.x << " " << infos.roi.y << " " << infos.roi.width << " "
