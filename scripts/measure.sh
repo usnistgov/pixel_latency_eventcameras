@@ -114,8 +114,8 @@ yaml_dump_multipixels() {
     for ((idx = 0; idx < NB_ELTS; idx += 1)); do
         config=${ROI_CONFIGS[$idx]}
         roi_config "$config" >/dev/null
-        sub_dir="roi_${X_START}_${Y_START}_${ROI_WIDTH}x${ROI_HEIGHT}"
-        echo "  '$CONFIG_NAME': $sub_dir"
+        roi_dir="${X_START}_${Y_START}_${ROI_WIDTH}_${ROI_HEIGHT}"
+        echo "  '$CONFIG_NAME': $roi_dir"
     done
 }
 
@@ -123,7 +123,6 @@ create_yaml_config() {
     yaml_dump_biases
     yaml_dump_rois
     yaml_dump_irradiances
-    yaml_dump_multipixels
 }
 
 ################################################################################
@@ -204,12 +203,9 @@ run_roi_measure() {
     local output_dir="$1"
 
     for config in "${ROI_CONFIGS[@]}"; do
-        local dir="$output_dir/roi_${X_START}_${Y_START}_${ROI_WIDTH}x${ROI_HEIGHT}"
-
-        mkdir -p "$dir"
         echo "$X_START $Y_START $ROI_WIDTH $ROI_HEIGHT"
         roi_config "$config"
-        run_latency_program "$dir" "$X_START" "$Y_START"
+        run_latency_program "$output_dir" "$X_START" "$Y_START"
     done
 }
 
@@ -220,7 +216,7 @@ interative_run_roi_measure() {
     mkdir -p "$output_dir"
     echo "JOB-INFO: start ROI measurements." >$LOG_FILE
     run_roi_measure "$output_dir"
-    create_yaml_config >>"$output_dir/config.yaml"
+    yaml_dump_multipixels >>"$output_dir/config.yaml"
 }
 
 ################################################################################
