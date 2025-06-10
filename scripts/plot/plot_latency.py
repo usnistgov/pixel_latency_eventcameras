@@ -170,8 +170,8 @@ def get_latencies_irradiance_bias(config: Config, data: dict) -> dict:
                 l0.append(stat0.mean)
                 l1.append(stat1.mean)
 
-            latencies[irradiance][0].append(Stat(0, np.mean(l0), np.std(l0)))
-            latencies[irradiance][1].append(Stat(0, np.mean(l1), np.std(l1)))
+            latencies[irr][0].append(Stat(0, np.mean(l0), np.std(l0)))
+            latencies[irr][1].append(Stat(0, np.mean(l1), np.std(l1)))
 
     return latencies
 
@@ -596,22 +596,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
-    args = parse_args()
-
-    plt.rcParams.update({'font.size': 20})
-    if args.output:
-        plt.rcParams.update({'font.size': 13})
-
-    print("DEBUG: OUTPUT_FLAG= ", args.output, ", OUTPUT_FILE=", args.output_file)
-
-    if args.mode == "mul":
-        plot_multipixel_latency(args)
-        return
-
-    config = Config(args.latency_directory)
-    data = collect_latency_data(config)
-
+def select_mode(config: Config, data: dict, args: object):
     match args.mode:
         case "lrb":
             plot_latency_roi_bias(config, data, args)
@@ -635,6 +620,25 @@ def main():
             print_stddev(config, args)
         case _:
             print(HELP_MESSAGE)
+
+
+def main():
+    args = parse_args()
+
+    plt.rcParams.update({'font.size': 20})
+    if args.output:
+        plt.rcParams.update({'font.size': 13})
+
+    print("DEBUG: OUTPUT_FLAG= ", args.output, ", OUTPUT_FILE=", args.output_file)
+
+    if args.mode == "mul":
+        plot_multipixel_latency(args)
+        return
+
+    config = Config(args.latency_directory)
+    data = collect_latency_data(config)
+
+    select_mode(config, data, args)
 
 
 if __name__ == "__main__":
