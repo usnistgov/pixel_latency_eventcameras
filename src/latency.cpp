@@ -37,7 +37,7 @@
  * of values.
  */
 template <template <typename> class Container, typename T>
-Stats compute_stats(Container<T> values) {
+Stats compute_stats(Container<T> &values) {
     double sum =
         std::accumulate(values.begin(), values.end(), 0.0, std::plus<T>());
     double mean = sum / (double)values.size();
@@ -55,28 +55,30 @@ Stats compute_stats(Container<T> values) {
 /**
  * @brief Create latency infos from delays and event counts.
  */
-MeasurementInfo compute_latency(delays_t &&delays, counts_t &&counts,
+MeasurementInfo compute_latency(delays_t const &delays, counts_t const &counts,
                                 size_t p0_count, size_t p1_count) {
     std::vector<delay_t> delay_values;
-    std::vector<count_t> count0_values(counts.size());
-    std::vector<count_t> count1_values(counts.size());
+    std::vector<size_t> count0_values(counts.size());
+    std::vector<size_t> count1_values(counts.size());
 
     for (size_t i = 0; i < delays.size(); ++i) {
         if (delays[i] > 0)
             delay_values.push_back(delays[i]);
-        count0_values[i] = counts[i].first;
-        count1_values[i] = counts[i].second;
     }
 
-    return {
-        .latency_stats = compute_stats(delay_values),
-        .count0_stats = compute_stats(count0_values),
-        .count1_stats = compute_stats(count1_values),
-        .p0_count = p0_count,
-        .p1_count = p1_count,
+    auto latency_stats = compute_stats(delay_values);
+    auto count0_stats = compute_stats(count0_values);
+    auto count1_stats = compute_stats(count1_values);
+
+    MeasurementInfo result{
+        .latency_stats = latency_stats,
+        .count0_stats = count0_stats,
+        .count1_stats = count1_stats,
+        .total_count = {p0_count, p1_count},
         .latency_map = delays,
         .count_map = counts,
     };
+    return result;
 }
 
 size_t insert_infos(EventAnalyzer const &event_analyzer, int16_t polarity,
@@ -88,9 +90,9 @@ size_t insert_infos(EventAnalyzer const &event_analyzer, int16_t polarity,
             event_delays[p] = delay;
         }
         if (polarity == 0) {
-            event_counts[p].first++;
+            event_counts[p].nb0++;
         } else {
-            event_counts[p].second++;
+            event_counts[p].nb1++;
         }
     }
     return points.size();
@@ -104,20 +106,29 @@ MeasurementInfos
 get_measurement_infos(EventAnalyzer const &event_analyzer,
                       TriggerAnalyzer const &trigger_analyzer) {
     MeasurementInfos infos(event_analyzer.window(), {});
-    size_t window_size = infos.roi.width * infos.roi.height;
+    // the ROI size is wrong on the camera...
+    size_t window_size = (infos.roi.width + 1) * (infos.roi.height + 1);
     auto events = event_analyzer.events();
     auto triggers = trigger_analyzer.triggers();
+    delays_t delays0(window_size);
+    delays_t delays1(window_size);
+    counts_t counts(window_size);
 
     for (size_t trigger_idx = 0; trigger_idx < triggers.size(); ++trigger_idx) {
-        delays_t delays0(window_size, -1), delays1(window_size, -1);
-        counts_t counts(window_size, {0, 0});
         size_t nb_off_events = 0, nb_on_events = 0;
         auto trigger = triggers.at(trigger_idx);
         auto event = events.find(trigger.timestamp);
+
+        // get end timestamp
         auto next_trigger_timestamp = event_analyzer.max_timestamp();
         if (trigger_idx + 1 < triggers.size()) {
             next_trigger_timestamp = triggers.at(trigger_idx + 1).timestamp;
         }
+
+        // reset data arrays
+        std::fill(delays0.begin(), delays0.end(), -1);
+        std::fill(delays1.begin(), delays1.end(), -1);
+        std::fill(counts.begin(), counts.end(), EventCount{0, 0});
 
         while (event != events.end() && event->first < next_trigger_timestamp) {
             auto delay = event->first - trigger.timestamp;
@@ -130,10 +141,9 @@ get_measurement_infos(EventAnalyzer const &event_analyzer,
         infos.stimuli.insert(
             {trigger,
              (trigger.polarity == 0)
-                 ? compute_latency(std::move(delays0), std::move(counts),
-                                   nb_off_events, nb_on_events)
-                 : compute_latency(std::move(delays1), std::move(counts),
-                                   nb_off_events, nb_on_events)});
+                 ? compute_latency(delays0, counts, nb_off_events, nb_on_events)
+                 : compute_latency(delays1, counts, nb_off_events,
+                                   nb_on_events)});
     }
     return infos;
 }
@@ -156,8 +166,8 @@ void dump_latency_stats(MeasurementInfos const &infos,
         fs << info.latency_stats.min << sep;
         fs << info.latency_stats.max << sep;
         fs << info.latency_stats.median << sep;
-        fs << info.p0_count << sep;
-        fs << info.p1_count << sep;
+        fs << info.total_count.nb0 << sep;
+        fs << info.total_count.nb1 << sep;
         fs << std::endl;
     }
 }
@@ -230,7 +240,7 @@ void dump_count_maps(MeasurementInfos const &infos,
     for (auto stimulus : infos.stimuli) {
         fs << stimulus.first.polarity;
         for (auto count : stimulus.second.count_map) {
-            fs << " " << count.first << ":" << count.second;
+            fs << " " << count.nb0 << ":" << count.nb1;
         }
         fs << std::endl;
     }

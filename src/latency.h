@@ -34,10 +34,14 @@
 #include <string>
 #include <vector>
 
+struct EventCount {
+    size_t nb0;
+    size_t nb1;
+};
+
 using delay_t = int64_t;
-using count_t = size_t;
 using delays_t = std::vector<delay_t>;
-using counts_t = std::vector<std::pair<count_t, count_t>>;
+using counts_t = std::vector<EventCount>;
 
 struct Stats {
     double mean = 0;
@@ -51,8 +55,7 @@ struct MeasurementInfo {
     Stats latency_stats;
     Stats count0_stats;
     Stats count1_stats;
-    size_t p0_count;
-    size_t p1_count;
+    EventCount total_count;
     delays_t latency_map;
     counts_t count_map;
 };

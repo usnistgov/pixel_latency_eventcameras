@@ -18,6 +18,7 @@
 
 #ifndef EVENT_ANALYZER_H
 #define EVENT_ANALYZER_H
+#include <cassert>
 #include <fstream>
 #include <log.h/log.h>
 #include <map>
