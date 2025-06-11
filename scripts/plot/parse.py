@@ -24,6 +24,7 @@ the measurements.
 from pathlib import Path
 import yaml
 import os
+import numpy as np
 
 
 class Stat:
@@ -70,7 +71,7 @@ class Stat:
         return None
 
 
-def mean_stats(stats: list[Stat]) -> Stat:
+def stats_mean(stats: list[Stat]) -> Stat:
     mean_latencies = [stat.mean for stat in stats]
     nb0 = [stat.nb0 for stat in stats]
     nb1 = [stat.nb1 for stat in stats]
@@ -96,4 +97,18 @@ def parse_latency_file(latency_file: str) -> tuple[Stat, Stat]:
                 continue
             stats[polarity].append(Stat.from_values(polarity, values))
 
-    return mean_stats(stats[0]), mean_stats(stats[1])
+    return stats_mean(stats[0]), stats_mean(stats[1])
+
+
+def parse_count_file(count_file):
+    stats = ([], [])
+
+    with open(latency_map_file) as file:
+        for line in file:
+            fields = line.split(";")
+            polarity = int(fields[0])
+            values = list(map(lambda f: float(f.split(':')[polarity]), fields[1:]))
+            stats[polarity] = Stats(polarity, values[0], values[1], values[2],
+                                    values[3], values[4])
+
+    return stats_mean(stats[0]), stats_mean(stats[1])
