@@ -38,6 +38,9 @@
  */
 template <template <typename> class Container, typename T>
 Stats compute_stats(Container<T> &values) {
+    if (values.empty()) {
+        return {0};
+    }
     double sum =
         std::accumulate(values.begin(), values.end(), 0.0, std::plus<T>());
     double mean = sum / (double)values.size();
@@ -137,6 +140,10 @@ get_measurement_infos(EventAnalyzer const &event_analyzer,
             nb_on_events += insert_infos(event_analyzer, 1, delays1, counts,
                                          event->second.points1, delay);
             event++;
+        }
+        if (nb_on_events == 0 && nb_off_events == 0) {
+            WARN("no events");
+            continue;
         }
         infos.stimuli.insert(
             {trigger,
