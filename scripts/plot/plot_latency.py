@@ -401,7 +401,7 @@ def plot_map(config: Config, data: dict, args: object):
 
     norm = mpl.colors.Normalize(vmin=0, vmax=vmax)
     cmap = plt.cm.viridis #plt.cm.RdBu
-    ax = [ax[r, c] for r in range(len(config.roi)) for c in range(len(config.bias))]
+    ax = [ax[r, c] for r in range(len(config.irradiance)) for c in range(len(config.bias))]
     fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax).set_label('Color Map')
 
     create_image(args)
