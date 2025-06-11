@@ -103,12 +103,12 @@ def parse_latency_file(latency_file: str) -> tuple[Stat, Stat]:
 def parse_count_file(count_file):
     stats = ([], [])
 
-    with open(latency_map_file) as file:
+    with open(count_file) as file:
         for line in file:
-            fields = line.split(";")
+            fields = line.split(";")[:-1]
             polarity = int(fields[0])
             values = list(map(lambda f: float(f.split(':')[polarity]), fields[1:]))
-            stats[polarity] = Stats(polarity, values[0], values[1], values[2],
-                                    values[3], values[4])
+            stats[polarity].append(Stat(polarity, values[0], values[1], values[2],
+                                        values[3], values[4]))
 
     return stats_mean(stats[0]), stats_mean(stats[1])
