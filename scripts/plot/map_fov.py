@@ -75,7 +75,7 @@ def main():
     plot_count_map(args.output, map_infos, args.plot_all)
 
 
-def create_pixel_map(values: list, width: int, height: int) -> npt.NDArray[int]:
+def create_pixel_map(values: list[str], width: int, height: int) -> npt.NDArray[int]:
     pixels = np.zeros(height * width)
 
     for i in range(height * width):
@@ -85,7 +85,7 @@ def create_pixel_map(values: list, width: int, height: int) -> npt.NDArray[int]:
 
 
 def parse_map_files(output_directory: str) -> MapInfos:
-    latency_map_file = output_directory + "/map.txt"
+    latency_map_file = output_directory + "/latency_map.txt"
     count_map_file = output_directory + "/count_map.txt"
     map_infos = MapInfos()
 
@@ -133,6 +133,9 @@ def analyze_latency_maps(map_infos: MapInfos, polarity: int,
             if px > cold_threshold:
                 row, col = i // map_infos.width, i % map_infos.width
                 map_infos.cold_pixels_map[polarity][row, col] += 1
+                print(f"Possible cold pixel at (row = {row}, col = {col}), \
+                        px = {px}, \
+                        nb = {map_infos.cold_pixels_map[polarity][row, col]}")
 
     size = len(map_infos.latency_maps[polarity][:nb_samples])
     mean_map /= size
@@ -144,7 +147,8 @@ def analyze_latency_maps(map_infos: MapInfos, polarity: int,
     map_infos.min_latency[polarity] = np.min(mean_map)
     map_infos.max_latency[polarity] = np.max(mean_map)
 
-    print(f"- mean latency = {map_infos.mean_latency[polarity]} +- {map_infos.std_latency[polarity]}")
+    print(f"- mean latency = {map_infos.mean_latency[polarity]} \
+            +- {map_infos.std_latency[polarity]}")
     print(f"- median latency = {map_infos.median_latency[polarity]}")
     print(f"- min latency = {map_infos.min_latency[polarity]}")
     print(f"- max latency = {map_infos.max_latency[polarity]}")
@@ -161,7 +165,7 @@ def analyze_latency_maps(map_infos: MapInfos, polarity: int,
         elif map_infos.cold_pixels_map[polarity][row, col] > 0.8 * size:
             print(f"Cold pixels at (row = {row}, col = {col}).")
     frozen_percentage = 100 * frozen_count / (map_infos.width * map_infos.height)
-    print(f"Frozen pixels: {frozen_count} ({frozen_percentage})")
+    print(f"Frozen pixels: {frozen_count} ({frozen_percentage}%)")
 
 
 def plot_polarity_latency(ax: object, map_infos: MapInfos, polarity: int,
@@ -229,16 +233,18 @@ def analyze_count_maps(map_infos: MapInfos, polarity: int,
     map_infos.min_count[polarity] = np.min(mean_map)
     map_infos.max_count[polarity] = np.max(mean_map)
 
-    print(f"- mean count = {map_infos.mean_count[polarity]} +- {map_infos.std_count[polarity]}")
+    print(f"- mean count = {map_infos.mean_count[polarity]} \
+            +- {map_infos.std_count[polarity]}")
     print(f"- median count = {map_infos.median_count[polarity]}")
     print(f"- min count = {map_infos.min_count[polarity]}")
     print(f"- max count = {map_infos.max_count[polarity]}")
 
     map_infos.hot_pixels_map[polarity] = np.zeros((map_infos.height,
                                                   map_infos.width))
+    hot_threshold = map_infos.median_count[polarity] * 100
     for i, px in enumerate(mean_map):
         row, col = i // map_infos.width, i % map_infos.width
-        if px > (map_infos.median_count[polarity] * 100):
+        if px > hot_threshold:
             map_infos.hot_pixels_map[polarity][row, col]
             print(f"Hot pixel at (row = {row}, col = {col}); average rate = {px}.")
 
