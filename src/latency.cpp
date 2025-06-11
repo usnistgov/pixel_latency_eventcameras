@@ -65,8 +65,11 @@ MeasurementInfo compute_latency(delays_t const &delays, counts_t const &counts,
     std::vector<size_t> count1_values(counts.size());
 
     for (size_t i = 0; i < delays.size(); ++i) {
-        if (delays[i] > 0)
+        if (delays[i] > 0) {
             delay_values.push_back(delays[i]);
+        }
+        count0_values[i] = counts[i].nb0;
+        count1_values[i] = counts[i].nb1;
     }
 
     auto latency_stats = compute_stats(delay_values);
