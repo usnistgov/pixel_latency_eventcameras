@@ -24,10 +24,12 @@
 
 
 CAMERA_MODEL="SilkyEvCamHD"
-#CAMERA_MODEL="SilkyEvCamVGA"
+if [[ $1 =~ CAM3_.* ]]; then
+    CAMERA_MODEL="SilkyEvCamVGA"
+fi
 echo "running experiment with camera model "${CAMERA_MODEL}
 
-PLOT_LATENCY_PROGRAM=../plot/plot_latency.py
+PLOT_LATENCY_PROGRAM=../plot/plot_stats.py
 INPUT_DIR=$1
 OUTPUT_DIR=${INPUT_DIR}_result
 
@@ -41,9 +43,7 @@ for param in ${PARAM_CONFIGS[@]}; do
             $PLOT_LATENCY_PROGRAM $INPUT_DIR \
             --mode lri \
             --bias ${param} \
-            --output  \
-            -o $OUTPUT_FILE \
-
+            -o $OUTPUT_FILE
 done
 #############################################
 # Configurations for ROIs
@@ -58,9 +58,7 @@ OUTPUT_FILE="${OUTPUT_DIR}/latency_per_bias_forROI_${param}.png"
             --mode lbi \
             --roi ${param} \
             --stddev  \
-            --output  \
-            -o $OUTPUT_FILE \
-
+            -o $OUTPUT_FILE
 done
 #################################################
 OUTPUT_FILE="${OUTPUT_DIR}/avg_latency_allBias_per_irr.png"
@@ -68,7 +66,6 @@ OUTPUT_FILE="${OUTPUT_DIR}/avg_latency_allBias_per_irr.png"
 $PLOT_LATENCY_PROGRAM $INPUT_DIR \
             --mode lib \
             --stddev  \
-            --output  \
             -o $OUTPUT_FILE \
 
 
@@ -79,7 +76,6 @@ $PLOT_LATENCY_PROGRAM $INPUT_DIR \
 #$PLOT_LATENCY_PROGRAM $INPUT_DIR \
 #            --mode mul \
 #            --polarity $POLARITY_VAL \
-#            --output  \
 #            -o $OUTPUT_FILE \
 
 ###########################################
@@ -94,7 +90,6 @@ for param_irr in ${PARAM_IRR_CONFIGS[@]}; do
          	--m std \
          	--i ${param_irr} \
          	--b ${param_bias} \
-         	--output  \
          	-o $OUTPUT_FILE \
 
          done
@@ -111,7 +106,6 @@ for param_irr in ${PARAM_IRR_CONFIGS[@]}; do
          	--m median \
          	--i ${param_irr} \
          	--b ${param_bias} \
-         	--output  \
          	-o $OUTPUT_FILE \
 
          done
@@ -128,7 +122,6 @@ for param_irr in ${PARAM_IRR_CONFIGS[@]}; do
          	--m nbevents \
          	--i ${param_irr} \
          	--b ${param_bias} \
-         	--output  \
          	-o $OUTPUT_FILE \
 
          done
@@ -147,7 +140,6 @@ for param in ${PARAM_CONFIGS[@]}; do
             --height 3 \
             --vmax ${param} \
             --polarity 0 \
-            --output  \
             -o $OUTPUT_FILE \
 
 done
@@ -160,7 +152,6 @@ for param in ${PARAM_CONFIGS[@]}; do
             --height 3 \
             --vmax ${param} \
             --polarity 1 \
-            --output  \
             -o $OUTPUT_FILE \
 
 done
@@ -176,7 +167,6 @@ for param in ${PARAM_CONFIGS[@]}; do
             --vmax ${param} \
             --polarity 0 \
             --std  \
-            --output  \
             -o $OUTPUT_FILE \
 
 done
@@ -190,7 +180,6 @@ for param in ${PARAM_CONFIGS[@]}; do
             --vmax ${param} \
             --polarity 1 \
             --std  \
-            --output  \
             -o $OUTPUT_FILE \
 
 done

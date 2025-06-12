@@ -1,5 +1,7 @@
 DIR=$1
-EXEC_DIR=../plot/
+EXEC_DIR=$(dirname $0)
+
+set -euo pipefail
 
 all() {
     file=$1
@@ -28,13 +30,13 @@ size_roi() {
 # generate image for non ROI measurements
 for file in $(ls $DIR | grep -E -v "roi|_result$"); do
     mkdir -p "img/$DIR/"
-    all $file &
-    roi $file &
-    maps $file &
+    # all $file
+    # roi $file
+    # maps $file
 done
 
 # generate image for ROI measurements
 for file in $(ls $DIR | grep roi | grep -E -v "_result$"); do
     mkdir -p "img/$DIR/"
-    size_roi $file &
+    size_roi $file
 done

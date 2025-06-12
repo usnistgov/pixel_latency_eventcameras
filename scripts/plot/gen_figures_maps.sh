@@ -22,7 +22,7 @@
 #                     script to generate multiple figures                      #
 ################################################################################
 
-PLOT_LATENCY_PROGRAM=../plot/plot_latency.py
+PLOT_LATENCY_PROGRAM=../plot/plot_stats.py
 INPUT_DIR=$1
 OUTPUT_DIR=${INPUT_DIR}_maps_result
 
@@ -43,9 +43,7 @@ for param_varidx in ${PARAM_VARIDX_CONFIGS[@]}; do
 			    --vmax ${param_vmax} \
 			    --polarity ${param_pol} \
 			    --varidx ${param_varidx}  \
-			    --output  \
-			    -o $OUTPUT_FILE \
-
+			    -o $OUTPUT_FILE
 		done
 	done
 done
@@ -65,9 +63,7 @@ for param_varidx in ${PARAM_VARIDX_CONFIGS[@]}; do
 			    --vmax ${param_vmax} \
 			    --polarity ${param_pol} \
 			    --varidx ${param_varidx}  \
-			    --output  \
-			    -o $OUTPUT_FILE \
-
+			    -o $OUTPUT_FILE
 		done
 	done
 done
