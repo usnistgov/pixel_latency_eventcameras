@@ -454,6 +454,23 @@ def plot_nbevents_bias_irr(config: Config, data: dict, args: object):
 #                                    maps                                     #
 ###############################################################################
 
+def create_map_legend(fig, ax, title, config, vmax):
+    for irr_idx, irr in enumerate(config.irradiance):
+        ax[irr_idx, 0].set_ylabel(f"{irr}")
+
+    for bias_idx, bias in enumerate(config.bias):
+        ax[len(config.irradiance) - 1, bias_idx].set_xlabel(bias)
+
+    fig.suptitle(title)
+
+    # add color bar
+    norm = mpl.colors.Normalize(vmin=0, vmax=vmax)
+    cmap = plt.cm.viridis #plt.cm.RdBu
+    ax = [ax[r, c] for r in range(len(config.irradiance))
+                   for c in range(len(config.bias))]
+    fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax).set_label('Color Map')
+
+
 def plot_map(config: Config, data: dict, stat: str, args: object):
     width, height = int(args.width), int(args.height)
     vmax = int(args.vmax)
@@ -473,18 +490,8 @@ def plot_map(config: Config, data: dict, stat: str, args: object):
 
             ax[irr_idx, bias_idx].imshow(latencies, vmin=0, vmax=vmax)
 
-    for irr_idx, irr in enumerate(config.irradiance):
-        ax[irr_idx, 0].set_ylabel(f"{irr}")
-
-    for bias_idx, bias in enumerate(config.bias):
-        ax[len(config.irradiance) - 1, bias_idx].set_xlabel(bias)
-
-    fig.suptitle(f"{'Stdev' if args.stddev else 'Average'} of latency per ROI")
-
-    norm = mpl.colors.Normalize(vmin=0, vmax=vmax)
-    cmap = plt.cm.viridis #plt.cm.RdBu
-    ax = [ax[r, c] for r in range(len(config.irradiance)) for c in range(len(config.bias))]
-    fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax).set_label('Color Map')
+    title = f"{'Stdev' if args.stddev else 'Average'} of latency per ROI"
+    create_map_legend(fig, ax, title, config, vmax)
 
     create_image(args)
 
@@ -519,21 +526,11 @@ def plot_map_roi(config: Config, data: dict, args: object):
 
             ax[irr_idx, bias_idx].imshow(latencies, vmin=0, vmax=vmax)
 
-    for irr_idx, irr in enumerate(config.irradiance.keys()):
-        ax[irr_idx, 0].set_ylabel(f"{irr}")
-
-    for bias_idx, bias in enumerate(config.bias.keys()):
-        ax[len(config.irradiance) - 1, bias_idx].set_xlabel(bias)
-
-    fig.suptitle(VARIDX_TITLE_TABLE[varidx])
-
     value_min = np.min(latencies)
     value_max = np.max(latencies)
     print("DEBUG: value_min:", value_min, " value_max:", value_max)
-    norm = mpl.colors.Normalize(vmin=0, vmax=vmax)
-    cmap = plt.cm.viridis #plt.cm.RdBu
-    ax = [ax[r, c] for r in range(len(config.irradiance)) for c in range(len(config.bias))]
-    fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax).set_label('Color Map')
+
+    create_map_legend(fig, ax, VARIDX_TITLE_TABLE[varidx], config, vmax)
     create_image(args)
 
 
