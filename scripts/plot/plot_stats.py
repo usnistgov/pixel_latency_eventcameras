@@ -36,7 +36,7 @@
 # ./plot_stats.py ./irr0_readout_backlight -m mul --polarity 1
 # ./plot_stats.py file1,file2,... -m mul --polarity 1 --logX --logY -std
 
-# ./plot_stats.py ./lens -m map -W 3 -H 3 -M 1000
+# ./plot_stats.py ./lens -m lmap -W 3 -H 3 -M 1000
 
 import argparse
 import matplotlib.pyplot as plt
@@ -57,11 +57,11 @@ Modes documentation:
            Requires [--roi] and [--stddev] (optional).
 - lib/cib: plot latency / count per irradiance over the biases configurations.
            Requires [--stddev] (optional).
-- map: plot latency map.
+- lmap/cmap: plot latency / count map.
        Requires:
        - [-W]: number of ROIs on the x axis.
        - [-H]: number of ROIs on the y axis.
-       - [-M]: max latency.
+       - [-M]: max expected latency / count.
        - [--stddev] (optional): plot the standard deviation.
 - maproi: plot latency map.
        Requires:
@@ -267,7 +267,7 @@ def get_stat_bias_irradiance(config: Config,
 # stats = {
 #     irradiance: ([off_stat_per_bias_config], [on_stat_per_bias_config])
 # }
-def get_stat_irradiance_bias(config: Config, stat: str, data: dict) -> dict:
+def get_stat_irradiance_bias(config: Config, data: dict, stat: str) -> dict:
     stats = {}
 
     for irr in config.irradiance:
@@ -324,7 +324,7 @@ def plot_latency_bias_irradiance(config: Config, data: dict, args: object):
 
 def plot_latency_irradiance_bias(config: Config, data: dict , args: object):
     """Plot latency per irradiance over bias configurations."""
-    latencies = get_stat_irradiance_bias(config, "latency", data)
+    latencies = get_stat_irradiance_bias(config,  data, "latency")
     plot_stats(
         latencies, config.bias.keys(), args.stddev,
         "Latency for events of polarity 0 and 1 per irradiance / bias configuration",
@@ -652,8 +652,10 @@ def select_mode(config: Config, data: dict, args: object):
             plot_count_bias_irradiance(config, data, args)
         case "cib":
             plot_count_irradiance_bias(config, data, args)
-        case "map":
+        case "lmap":
             plot_map(config, data, "latency", args)
+        case "cmap":
+            plot_map(config, data, "count", args)
         case "maproi":
             plot_map_roi(config, data, args)
         case "std":
