@@ -96,6 +96,10 @@ def parse_args():
                         "--stddev",
                         action="store_true",
                         help="plot the standard deviation using errorbars")
+    parser.add_argument("-logX", "--logX", action="store_true",
+                        help="use log scale")
+    parser.add_argument("-logY", "--logY", action="store_true",
+                        help="use log scale")
     parser.add_argument("-P", "--polarity", default=1)
     parser.add_argument("-o", "--output", default="", required=False)
     return parser.parse_args()
