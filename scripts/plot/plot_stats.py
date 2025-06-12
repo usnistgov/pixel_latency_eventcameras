@@ -163,13 +163,15 @@ def create_image(args: object):
 
 
 def plot_stats(latencies: dict,
-                 x: list,
-                 stddev: bool,
-                 suptitle: str,
-                 title: str,
-                 xlabel: str,
-                 ylabel: str,
-                 label=False):
+               x: list,
+               stddev: bool,
+               suptitle: str,
+               title: str,
+               xlabel: str,
+               ylabel: str,
+               label=False,
+               log_x=False,
+               log_y=False):
     fig, ax = plt.subplots(2, 1, squeeze=False)
     plt.subplots_adjust(hspace=0.3)
 
@@ -197,6 +199,17 @@ def plot_stats(latencies: dict,
     if label:
         ax[0, 0].legend()
         ax[1, 0].legend()
+
+    if log_x:
+        ax[0, 0].set_xscale("log")
+        ax[1, 0].set_xscale("log")
+    if log_y:
+        plt.yscale("log")
+        ax[0, 0].set_yscale("log")
+        ax[1, 0].set_yscale("log")
+
+    ax[0, 0].grid(True)
+    ax[1, 0].grid(True)
 
     fig.suptitle(suptitle)
 
@@ -296,7 +309,7 @@ def plot_latency_roi_bias(config: Config, data: dict, args: object):
         latencies, config.bias.keys(), args.stddev,
         f"Latency for events of polarity 0 and 1 / bias configuration (irradiance = {args.irradiance} W/m2)",
         "event latency per ROI / bias configurations", "bias configurations",
-        "latency (us)")
+        "latency (us)", False, args.log_x, args.log_y)
     create_image(args)
 
 
@@ -307,7 +320,7 @@ def plot_latency_roi_irradiance(config: Config, data: dict, args: object):
         latencies, config.irradiance.keys(), args.stddev,
         f"Latency for events of polarity 0 and 1 / irradiance (bias configuration = {args.bias})",
         "event latency per ROI / irradiance", "irradiance (W/m2)",
-        "latency (us)")
+        "latency (us)", False, args.log_x, args.log_y)
     create_image(args)
 
 
@@ -315,9 +328,9 @@ def plot_latency_bias_irradiance(config: Config, data: dict, args: object):
     """Plot latency per bias config over irradiance."""
     latencies = get_stat_bias_irradiance(config, data, "latency", args.roi)
     plot_stats(latencies, config.irradiance.keys(), args.stddev,
-                 "Latency for bias configurations / irradiance",
-                 "latency for bias configurations / irradiance",
-                 "irradiance (W/m2)", "latency (us)", True)
+               "Latency for bias configurations / irradiance",
+               "latency for bias configurations / irradiance",
+               "irradiance (W/m2)", "latency (us)", True, args.log_x, args.log_y)
     plt.legend()
     create_image(args)
 
@@ -329,7 +342,7 @@ def plot_latency_irradiance_bias(config: Config, data: dict , args: object):
         latencies, config.bias.keys(), args.stddev,
         "Latency for events of polarity 0 and 1 per irradiance / bias configuration",
         "event latency per irradiace / bias config", "bias config",
-        "latency (us)", True)
+        "latency (us)", True, args.log_x, args.log_y)
     create_image(args)
 
 
@@ -344,7 +357,7 @@ def plot_count_roi_bias(config: Config, data: dict, args: object):
         counts, config.bias.keys(), args.stddev,
         f"Event count for polarity 0 and 1 / bias configuration (irradiance = {args.irradiance} W/m2)",
         "event count per ROI / bias configurations", "bias configurations",
-        "count (us)")
+        "count (us)", False, args.log_x, args.log_y)
     create_image(args)
 
 
@@ -355,7 +368,7 @@ def plot_count_roi_irradiance(config: Config, data: dict, args: object):
         counts, config.irradiance.keys(), args.stddev,
         f"Event count for polarity 0 and 1 / irradiance (bias configuration = {args.bias})",
         "event count per ROI / irradiance", "irradiance (W/m2)",
-        "count (us)")
+        "count (us)", False, args.log_x, args.log_y)
     create_image(args)
 
 
@@ -365,7 +378,7 @@ def plot_count_bias_irradiance(config: Config, data: dict, args: object):
     plot_stats(counts, config.irradiance.keys(), args.stddev,
                  "Latency for bias configurations / irradiance",
                  "count for bias configurations / irradiance",
-                 "irradiance (W/m2)", "count (us)", True)
+                 "irradiance (W/m2)", "count (us)", True, args.log_x, args.log_y)
     plt.legend()
     create_image(args)
 
@@ -377,7 +390,7 @@ def plot_count_irradiance_bias(config: Config, data: dict , args: object):
         counts, config.bias.keys(), args.stddev,
         "Event count for polarity 0 and 1 per irradiance / bias configuration",
         "event count per irradiace / bias config", "bias config",
-        "count (us)", True)
+        "count (us)", True, args.log_x, args.log_y)
     create_image(args)
 
 
@@ -612,9 +625,9 @@ def parse_args():
                         "--stddev",
                         action="store_true",
                         help="plot the standard deviation using errorbars")
-    parser.add_argument("-logX", "--logX", action="store_true",
+    parser.add_argument("-log-x", "--log-x", action="store_true",
                         help="use log scale")
-    parser.add_argument("-logY", "--logY", action="store_true",
+    parser.add_argument("-log-y", "--log-y", action="store_true",
                         help="use log scale")
     parser.add_argument("-P", "--polarity", default=1)
     parser.add_argument("-W", "--width", default=3)
