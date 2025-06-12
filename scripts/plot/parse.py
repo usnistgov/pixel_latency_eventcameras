@@ -85,7 +85,6 @@ def parse_latency_file(latency_file: str) -> tuple[Stat, Stat]:
     stats = ([], [])
 
     if not Path(latency_file).exists():
-        print(f"ERROR: {latency_file} does not exists.")
         return None
 
     with open(latency_file) as latency_file:
@@ -100,8 +99,11 @@ def parse_latency_file(latency_file: str) -> tuple[Stat, Stat]:
     return stats_mean(stats[0]), stats_mean(stats[1])
 
 
-def parse_count_file(count_file):
+def parse_count_file(count_file: str) -> tuple[Stat, Stat]:
     stats = ([], [])
+
+    if not Path(count_file).exists():
+        return None
 
     with open(count_file) as file:
         for line in file:
