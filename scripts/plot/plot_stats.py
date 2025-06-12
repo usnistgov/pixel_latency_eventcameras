@@ -18,6 +18,26 @@
 # damage to property. The software developed by NIST employees is not subject to copyright protection within the
 # United States.
 
+# ./plot_stats.py ./no_backlight -m lrb -i 0.01
+# ./plot_stats.py ./no_backlight -m lrb -i 0.11
+# ./plot_stats.py ./no_backlight -m lrb -i 0.27
+# ./plot_stats.py ./no_backlight -m lrb -i 0.48
+# ./plot_stats.py ./no_backlight -m lrb -i 0.82
+
+# ./plot_stats.py ./no_backlight -m lri -b max
+# ./plot_stats.py ./no_backlight -m lri -b zero
+# ./plot_stats.py ./no_backlight -m lri -b min
+
+# ./plot_stats.py ./no_backlight -m lbi -r 630_350_10_10
+# ./plot_stats.py ./no_backlight -m lbi -r 640_350_10_10
+
+# ./plot_stats.py ./no_backlight -m lib -r 640_350_10_10
+
+# ./plot_stats.py ./irr0_readout_backlight -m mul --polarity 1
+# ./plot_stats.py file1,file2,... -m mul --polarity 1 --logX --logY -std
+
+# ./plot_stats.py ./lens -m map -W 3 -H 3 -M 1000
+
 import argparse
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -25,19 +45,18 @@ import numpy as np
 from pathlib import Path
 import yaml
 import os
-from parse import Stat, parse_latency_file
+from parse import Stat, parse_latency_file, parse_count_file
 
 HELP_MESSAGE = """
 Modes documentation:
-- lrb: plot latency per roi over the baises configurations.
-       Requires [--irradiance] and [--stddev] (optional).
-- lri: plot latency per roi over the irradiace.
-       Requires [--bias] and [--stddev] (optional).
-- lbi: plot latency per bias config over the irradiance.
-       Requires [--roi] and [--stddev] (optional).
-- lib: plot latency per irradiance over the biases configurations.
-       Requires [--stddev] (optional).
-- mul: plot multi pixel latency.
+- lrb/crb: plot latency / count per roi over the baises configurations.
+           Requires [--irradiance] and [--stddev] (optional).
+- lri/cri: plot latency / count per roi over the irradiace.
+           Requires [--bias] and [--stddev] (optional).
+- lbi/cbi: plot latency / count per bias config over the irradiance.
+           Requires [--roi] and [--stddev] (optional).
+- lib/cib: plot latency / count per irradiance over the biases configurations.
+           Requires [--stddev] (optional).
 - map: plot latency map.
        Requires:
        - [-W]: number of ROIs on the x axis.
@@ -62,25 +81,6 @@ Modes documentation:
 - stdroi: print standard deviation between roi values.
 """
 
-# ./plot_latency.py ./no_backlight -m lrb -i 0.01
-# ./plot_latency.py ./no_backlight -m lrb -i 0.11
-# ./plot_latency.py ./no_backlight -m lrb -i 0.27
-# ./plot_latency.py ./no_backlight -m lrb -i 0.48
-# ./plot_latency.py ./no_backlight -m lrb -i 0.82
-
-# ./plot_latency.py ./no_backlight -m lri -b max
-# ./plot_latency.py ./no_backlight -m lri -b zero
-# ./plot_latency.py ./no_backlight -m lri -b min
-
-# ./plot_latency.py ./no_backlight -m lbi -r 630_350_10_10
-# ./plot_latency.py ./no_backlight -m lbi -r 640_350_10_10
-
-# ./plot_latency.py ./no_backlight -m lib -r 640_350_10_10
-
-# ./plot_latency.py ./irr0_readout_backlight -m mul --polarity 1
-# ./plot_latency.py file1,file2,... -m mul --polarity 1 --logX --logY -std
-
-# ./plot_latency.py ./lens -m map -W 3 -H 3 -M 1000
 
 VARIDX_TITLE_TABLE = {
     0: "Average latency per ROI",
@@ -132,11 +132,18 @@ def collect_latency_data(config: Config) -> dict:
         for bias, bias_dir in config.biases():
             data[irr][bias] = dict()
             for roi, roi_dir in config.rois():
+                data[irr][bias][roi] = dict()
+                # get latency stats
                 latency_file = config.result_dir / irr_dir / bias_dir / roi_dir / "latency.txt"
                 stats = parse_latency_file(latency_file)
-                if stats == None:
-                    continue
-                data[irr][bias][roi] = stats
+                if stats != None:
+                    data[irr][bias][roi]["latency"] = stats
+
+                # get event rate stats
+                count_file = config.result_dir / irr_dir / bias_dir / roi_dir / "count.txt"
+                stats = parse_count_file(count_file)
+                if stats != None:
+                    data[irr][bias][roi]["count"] = stats
 
     return data
 
@@ -146,150 +153,16 @@ def collect_latency_data(config: Config) -> dict:
 ###############################################################################
 
 def create_image(args: object):
-    if args.output:
+    if args.output != "":
         figure = plt.gcf()  # get current figure
         figure.set_size_inches(8, 6)
-        print("DEBUG: OUTPUT_FILE=", args.output_file)
-        plt.savefig(args.output_file, dpi=100)
+        print("DEBUG: OUTPUT=", args.output)
+        plt.savefig(args.output, dpi=100)
     else:
         plt.show()
 
 
-# latencies = {
-#     irradiance: ([off_latencies_per_bias_config], [on_latencies_per_bias_config])
-# }
-def get_latencies_irradiance_bias(config: Config, data: dict) -> dict:
-    latencies = {}
-
-    for irr in config.irradiance:
-        latencies[irr] = ([], [])
-        for bias in config.bias:
-            l0, l1 = [], []
-            for roi in config.roi:
-                stat0, stat1 = data[irr][bias][roi]
-                l0.append(stat0.mean)
-                l1.append(stat1.mean)
-
-            latencies[irr][0].append(Stat(0, np.mean(l0), np.std(l0)))
-            latencies[irr][1].append(Stat(0, np.mean(l1), np.std(l1)))
-
-    return latencies
-
-
-# latencies = {
-#     roi: ([off_latencies_per_bias_config], [on_latencies_per_bias_config])
-# }
-def get_latencies_roi_bias(config: Config, data: dict, irradiance_config: str) -> dict:
-    latencies = {}
-
-    for idx, roi in enumerate(config.roi):
-        latencies[idx] = {0: [], 1: []}
-        for bias in config.bias:
-            stat0, stat1 = data[irradiance_config][bias][roi]
-            latencies[idx][0].append(stat0)
-            latencies[idx][1].append(stat1)
-
-    return latencies
-
-
-# latencies = {
-#     roi: ([off_latencies_per_irradiance], [on_latencies_per_irradiance])
-# }
-def get_latencies_roi_irradiance(config: Config, data: dict, bias_config: str) -> dict:
-    latencies = {}
-
-    for idx, roi in enumerate(config.roi):
-        latencies[idx] = {0: [], 1: []}
-        for irr in config.irradiance:
-            stat0, stat1 = data[irr][bias_config][roi]
-            latencies[idx][0].append(stat0)
-            latencies[idx][1].append(stat1)
-
-    return latencies
-
-
-# latencies = {
-#     bias_config: ([off_latencies_per_irradiance], [on_latencies_per_irradiance])
-# }
-def get_latencies_bias_irradiance(config: Config, data: dict, roi_config: str) -> dict:
-    latencies = {}
-
-    for bias in config.bias:
-        latencies[bias] = {0: [], 1: []}
-        for irr in config.irradiance:
-            stat0, stat1 = data[irr][bias][roi_config]
-            latencies[bias][0].append(stat0)
-            latencies[bias][1].append(stat1)
-
-    return latencies
-
-
-def plot_stddev_bias_irr(config: Config, data: dict, args: object):
-    vals = []
-
-    for roi in config.roi:
-        stat0, stat1 = data[args.irradiance][args.bias][roi]
-        stat = stat0 if args.polarity == "0" else stat1
-        vals.append(stat.stddev)
-        plt.title(f"Latency Stdev per ROI (polarity {args.polarity})")
-
-    plt.plot(vals)
-    plt.ylabel("stdev of latency (us)")
-    plt.xlabel("ROI index")
-    create_image(args)
-
-
-'''
-Plots min, median, and max values per ROI for each irradiance and each bias
-'''
-
-def plot_median_bias_irr(config: Config, data: dict, args: object):
-    vals_min = []
-    vals_max = []
-    vals_median = []
-
-    for roi in config.roi:
-        stat0, stat1 = data[args.irradiance][args.bias][roi]
-        stat = stat0 if args.polarity == "0" else stat1
-        vals_min.append(stat.min)
-        vals_max.append(stat.max)
-        vals_median.append(stat.median)
-        plt.title(f"Latency Min/Median/Max per ROI (Polarity {args.polarity})")
-
-    plt.plot(vals_min, label="min")
-    plt.plot(vals_max, label="max")
-    plt.plot(vals_median, label="median")
-    plt.legend()
-    plt.ylabel("min/median/max of latency (us)")
-    plt.xlabel("ROI index")
-    create_image(args)
-
-
-'''
-Plots number of 0 and 1 polarity events per ROI for each irradiance and each bias
-'''
-
-def plot_nbevents_bias_irr(config: Config, data: dict, args: object):
-    vals_nb_zero_pol = []
-    vals_nb_one_pol = []
-
-    for roi in config.roi:
-        stat0, stat1 = data[args.irradiance][args.bias][roi]
-        stat = stat0 if args.polarity == "0" else stat1
-        vals_nb_zero_pol.append(stat.nb0)
-        vals_nb_one_pol.append(stat.nb1)
-        plt.title(
-            f"Number of 0 & 1 polarity events per ROI between P{args.polarity} triggers")
-
-    plt.plot(vals_nb_zero_pol, label="nb_pol_0")
-    plt.plot(vals_nb_one_pol, label="nb_pol_1")
-    plt.legend()
-    plt.ylabel("number of 0 & 1 polarity events")
-    plt.xlabel("ROI index")
-    create_image(args)
-
-
-def plot_latency(latencies: dict,
+def plot_stats(latencies: dict,
                  x: list,
                  stddev: bool,
                  suptitle: str,
@@ -328,10 +201,98 @@ def plot_latency(latencies: dict,
     fig.suptitle(suptitle)
 
 
+###############################################################################
+#                               data selection                                #
+###############################################################################
+
+# stats = {
+#     roi: ([off_stat_per_bias_config], [on_stat_per_bias_config])
+# }
+def get_stat_roi_bias(config: Config,
+                      data: dict,
+                      stat: str,
+                      irradiance_config: str
+                      ) -> dict:
+    stats = {}
+
+    for idx, roi in enumerate(config.roi):
+        stats[idx] = {0: [], 1: []}
+        for bias in config.bias:
+            stat0, stat1 = data[irradiance_config][bias][roi][stat]
+            stats[idx][0].append(stat0)
+            stats[idx][1].append(stat1)
+
+    return stats
+
+
+# stats = {
+#     roi: ([off_stat_per_irradiance], [on_stat_per_irradiance])
+# }
+def get_stat_roi_irradiance(config: Config,
+                            data: dict,
+                            stat: str,
+                            bias_config: str
+                            ) -> dict:
+    stats = {}
+
+    for idx, roi in enumerate(config.roi):
+        stats[idx] = {0: [], 1: []}
+        for irr in config.irradiance:
+            stat0, stat1 = data[irr][bias_config][roi][stat]
+            stats[idx][0].append(stat0)
+            stats[idx][1].append(stat1)
+
+    return stats
+
+
+# stats = {
+#     bias_config: ([off_stat_per_irradiance], [on_stat_per_irradiance])
+# }
+def get_stat_bias_irradiance(config: Config,
+                             data: dict,
+                             stat: str,
+                             roi_config: str) -> dict:
+    latencies = {}
+
+    for bias in config.bias:
+        latencies[bias] = {0: [], 1: []}
+        for irr in config.irradiance:
+            stat0, stat1 = data[irr][bias][roi_config][stat]
+            latencies[bias][0].append(stat0)
+            latencies[bias][1].append(stat1)
+
+    return latencies
+
+
+# stats = {
+#     irradiance: ([off_stat_per_bias_config], [on_stat_per_bias_config])
+# }
+def get_stat_irradiance_bias(config: Config, stat: str, data: dict) -> dict:
+    stats = {}
+
+    for irr in config.irradiance:
+        stats[irr] = ([], [])
+        for bias in config.bias:
+            l0, l1 = [], []
+            for roi in config.roi:
+                stat0, stat1 = data[irr][bias][roi][stat]
+                l0.append(stat0.mean)
+                l1.append(stat1.mean)
+
+            stats[irr][0].append(Stat(0, np.mean(l0), np.std(l0)))
+            stats[irr][1].append(Stat(0, np.mean(l1), np.std(l1)))
+
+    return stats
+
+
+###############################################################################
+#                               plot latency                                  #
+###############################################################################
+
 def plot_latency_roi_bias(config: Config, data: dict, args: object):
     """Plot latency per ROI over bias configurations."""
-    latencies = get_latencies_roi_bias(config, data, args.irradiance)
-    plot_latency(
+    latencies = get_stat_roi_bias(config, data, "latency", args.irradiance)
+    plot_stats(
         latencies, config.bias.keys(), args.stddev,
         f"Latency for events of polarity 0 and 1 / bias configuration (irradiance = {args.irradiance} W/m2)",
         "event latency per ROI / bias configurations", "bias configurations",
@@ -341,8 +302,8 @@ def plot_latency_roi_bias(config: Config, data: dict, args: object):
 
 def plot_latency_roi_irradiance(config: Config, data: dict, args: object):
     """Plot latency per ROI over irradiance."""
-    latencies = get_latencies_roi_irradiance(config, data, args.bias)
-    plot_latency(
+    latencies = get_stat_roi_irradiance(config, data, "latency", args.bias)
+    plot_stats(
         latencies, config.irradiance.keys(), args.stddev,
         f"Latency for events of polarity 0 and 1 / irradiance (bias configuration = {args.bias})",
         "event latency per ROI / irradiance", "irradiance (W/m2)",
@@ -352,8 +313,8 @@ def plot_latency_roi_irradiance(config: Config, data: dict, args: object):
 
 def plot_latency_bias_irradiance(config: Config, data: dict, args: object):
     """Plot latency per bias config over irradiance."""
-    latencies = get_latencies_bias_irradiance(config, data, args.roi)
-    plot_latency(latencies, config.irradiance.keys(), args.stddev,
+    latencies = get_stat_bias_irradiance(config, data, "latency", args.roi)
+    plot_stats(latencies, config.irradiance.keys(), args.stddev,
                  "Latency for bias configurations / irradiance",
                  "latency for bias configurations / irradiance",
                  "irradiance (W/m2)", "latency (us)", True)
@@ -363,8 +324,8 @@ def plot_latency_bias_irradiance(config: Config, data: dict, args: object):
 
 def plot_latency_irradiance_bias(config: Config, data: dict , args: object):
     """Plot latency per irradiance over bias configurations."""
-    latencies = get_latencies_irradiance_bias(config, data)
-    plot_latency(
+    latencies = get_stat_irradiance_bias(config, "latency", data)
+    plot_stats(
         latencies, config.bias.keys(), args.stddev,
         "Latency for events of polarity 0 and 1 per irradiance / bias configuration",
         "event latency per irradiace / bias config", "bias config",
@@ -372,7 +333,128 @@ def plot_latency_irradiance_bias(config: Config, data: dict , args: object):
     create_image(args)
 
 
-def plot_map(config: Config, data: dict, args: object):
+###############################################################################
+#                              plot event count                               #
+###############################################################################
+
+def plot_count_roi_bias(config: Config, data: dict, args: object):
+    """Plot event count per ROI over bias configurations."""
+    counts = get_stat_roi_bias(config, data, "count", args.irradiance)
+    plot_stats(
+        counts, config.bias.keys(), args.stddev,
+        f"Event count for polarity 0 and 1 / bias configuration (irradiance = {args.irradiance} W/m2)",
+        "event count per ROI / bias configurations", "bias configurations",
+        "count (us)")
+    create_image(args)
+
+
+def plot_count_roi_irradiance(config: Config, data: dict, args: object):
+    """Plot event count per ROI over irradiance."""
+    counts = get_stat_roi_irradiance(config, data, "count", args.bias)
+    plot_stats(
+        counts, config.irradiance.keys(), args.stddev,
+        f"Event count for polarity 0 and 1 / irradiance (bias configuration = {args.bias})",
+        "event count per ROI / irradiance", "irradiance (W/m2)",
+        "count (us)")
+    create_image(args)
+
+
+def plot_count_bias_irradiance(config: Config, data: dict, args: object):
+    """Plot event count per bias config over irradiance."""
+    counts = get_stat_bias_irradiance(config, data, "count", args.roi)
+    plot_stats(counts, config.irradiance.keys(), args.stddev,
+                 "Latency for bias configurations / irradiance",
+                 "count for bias configurations / irradiance",
+                 "irradiance (W/m2)", "count (us)", True)
+    plt.legend()
+    create_image(args)
+
+
+def plot_count_irradiance_bias(config: Config, data: dict , args: object):
+    """Plot event count per irradiance over bias configurations."""
+    counts = get_stat_irradiance_bias(config, data, "count")
+    plot_stats(
+        counts, config.bias.keys(), args.stddev,
+        "Event count for polarity 0 and 1 per irradiance / bias configuration",
+        "event count per irradiace / bias config", "bias config",
+        "count (us)", True)
+    create_image(args)
+
+
+###############################################################################
+#                            plot other components                             #
+###############################################################################
+
+def plot_stddev_bias_irr(config: Config, data: dict, args: object):
+    vals = []
+
+    for roi in config.roi:
+        stat0, stat1 = data[args.irradiance][args.bias][roi]["latency"]
+        stat = stat0 if args.polarity == "0" else stat1
+        vals.append(stat.stddev)
+        plt.title(f"Latency Stdev per ROI (polarity {args.polarity})")
+
+    plt.plot(vals)
+    plt.ylabel("stdev of latency (us)")
+    plt.xlabel("ROI index")
+    create_image(args)
+
+
+'''
+Plots min, median, and max values per ROI for each irradiance and each bias
+'''
+
+def plot_median_bias_irr(config: Config, data: dict, args: object):
+    vals_min = []
+    vals_max = []
+    vals_median = []
+
+    for roi in config.roi:
+        stat0, stat1 = data[args.irradiance][args.bias][roi]["latency"]
+        stat = stat0 if args.polarity == "0" else stat1
+        vals_min.append(stat.min)
+        vals_max.append(stat.max)
+        vals_median.append(stat.median)
+        plt.title(f"Latency Min/Median/Max per ROI (Polarity {args.polarity})")
+
+    plt.plot(vals_min, label="min")
+    plt.plot(vals_max, label="max")
+    plt.plot(vals_median, label="median")
+    plt.legend()
+    plt.ylabel("min/median/max of latency (us)")
+    plt.xlabel("ROI index")
+    create_image(args)
+
+
+'''
+Plots number of 0 and 1 polarity events per ROI for each irradiance and each bias
+'''
+
+def plot_nbevents_bias_irr(config: Config, data: dict, args: object):
+    vals_nb_zero_pol = []
+    vals_nb_one_pol = []
+
+    for roi in config.roi:
+        stat0, stat1 = data[args.irradiance][args.bias][roi]["latency"]
+        stat = stat0 if args.polarity == "0" else stat1
+        vals_nb_zero_pol.append(stat.nb0)
+        vals_nb_one_pol.append(stat.nb1)
+        plt.title(
+            f"Number of 0 & 1 polarity events per ROI between P{args.polarity} triggers")
+
+    plt.plot(vals_nb_zero_pol, label="nb_pol_0")
+    plt.plot(vals_nb_one_pol, label="nb_pol_1")
+    plt.legend()
+    plt.ylabel("number of 0 & 1 polarity events")
+    plt.xlabel("ROI index")
+    create_image(args)
+
+
+###############################################################################
+#                                    maps                                     #
+###############################################################################
+
+def plot_map(config: Config, data: dict, stat: str, args: object):
     width, height = int(args.width), int(args.height)
     vmax = int(args.vmax)
     polarity = int(args.polarity)
@@ -384,10 +466,10 @@ def plot_map(config: Config, data: dict, args: object):
         for bias_idx, bias in enumerate(config.bias):
             latencies = np.zeros((width, height))
             for roi_idx, roi in enumerate(config.roi):
-                stat0, stat1 = data[irr][bias][roi]
-                stat = stat0 if polarity == 0 else stat1
+                stat0, stat1 = data[irr][bias][roi][stat]
+                stat_ = stat0 if polarity == 0 else stat1
                 latencies[roi_idx // height, roi_idx % height] = \
-                    stat.stddev if args.stddev else stat.mean
+                    stat_.stddev if args.stddev else stat_.mean
 
             ax[irr_idx, bias_idx].imshow(latencies, vmin=0, vmax=vmax)
 
@@ -431,7 +513,7 @@ def plot_map_roi(config: Config, data: dict, args: object):
         for bias_idx, bias in enumerate(config.bias):
             latencies = np.zeros((width, height))
             for roi_idx, roi in enumerate(config.roi):
-                stat0, stat1 = data[irr][bias][roi]
+                stat0, stat1 = data[irr][bias][roi]["latency"]
                 stat = stat0 if polarity == 0 else stat1
                 latencies[roi_idx // height, roi_idx % height] = stat.get(varidx)
 
@@ -452,57 +534,6 @@ def plot_map_roi(config: Config, data: dict, args: object):
     cmap = plt.cm.viridis #plt.cm.RdBu
     ax = [ax[r, c] for r in range(len(config.irradiance)) for c in range(len(config.bias))]
     fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax).set_label('Color Map')
-    create_image(args)
-
-
-def collect_cam_multipixel_latency(latency_dir: Path, args: object):
-    result = dict()
-    multi_pixel_latency_files = dict()
-
-    with open(Path(latency_dir) / "config.yaml") as config_file:
-        config = yaml.safe_load(config_file)
-        multi_pixel_latency_files = config["multi_pixel_latency_files"]
-
-    for size in multi_pixel_latency_files:
-        dir = Path(multi_pixel_latency_files[size])
-        latency_file = latency_dir / dir / "latency.txt"
-        print("DEBUG: latency_dir=", latency_dir, ", dir=", dir, ", latency_file=", latency_file)
-        stats = parse_latency_file(latency_file)
-        if stats == None:
-            continue
-        result[int(size)] = stats
-
-
-def plot_multipixel_latency(args: object):
-    polarity = int(args.polarity)
-    latency_directories = args.latency_directory.split(",")
-    results = dict()
-
-    for idx, latency_dir in enumerate(latency_directories):
-        result = {}
-        results[f"cam {idx}"] = collect_latency_data(Path(latency_dir), args)
-
-    for cam in results.keys():
-        result = results[cam]
-        values = [latency[polarity].mean for latency in result.values()]
-        # coef = np.polyfit(list(result.keys()), values, 1)
-        # poly1d = np.poly1d(coef)
-        std = [latency[polarity].stddev for latency in result.values()]
-        print(values)
-        if args.stddev:
-            plt.errorbar(result.keys(), values, std, label=cam)
-        else:
-            x = list(result.keys())
-            plt.plot(x, values, label=cam)
-
-    plt.ylabel("latency (us)")
-    plt.xlabel("nb pixels")
-    plt.legend()
-    plt.title("Latency over ROI sizes")
-    if args.logX:
-        plt.xscale("log")
-    if args.logY:
-        plt.yscale("log")
     create_image(args)
 
 
@@ -542,7 +573,7 @@ def print_stddev(dir_name: str):
         # latencies = {
         #     roi: ([off_latencies_per_bias_config], [on_latencies_per_bias_config])
         # }
-        latencies = get_latencies_roi_bias(dir_name,
+        latencies = get_stat_roi_bias(dir_name,
                                            config.irradiance[irradiance])
         print(f"Standard deviation for {irradiance} W/m^2:")
         print_stddev_bias(latencies, irradiance, 0)
@@ -552,20 +583,24 @@ def print_stddev(dir_name: str):
         # latencies = {
         #     roi: ([off_latencies_per_irradiance], [on_latencies_per_irradiance])
         # }
-        latencies = get_latencies_roi_irradiance(dir_name, config.bias[bias])
+        latencies = get_stat_roi_irradiance(dir_name, "latency", config.bias[bias])
         print(f"Standard deviation for {bias}:")
         print_stddev_irradiance(latencies, bias, 0)
         print_stddev_irradiance(latencies, bias, 1)
 
 
+###############################################################################
+#                                 parse args                                  #
+###############################################################################
+
 def parse_args():
-    parser = argparse.ArgumentParser("plot_latency")
+    parser = argparse.ArgumentParser("plot_stats")
     parser.add_argument("latency_directory")
     parser.add_argument(
         "-m",
         "--mode",
         help=
-        "mode: lrb/lri/lbi/lib/mul/map/std/stdroi (use mode `help` for more information)"
+        "mode: lrb/lri/lbi/lib/map/std/stdroi (use mode `help` for more information)"
     )
     parser.add_argument("-i", "--irradiance", default=0)
     parser.add_argument("-b",
@@ -589,12 +624,15 @@ def parse_args():
     parser.add_argument("-H", "--height", default=3)
     parser.add_argument("-M", "--vmax", default=1000)
     parser.add_argument("-V", "--varidx", default=0)
-    parser.add_argument("-O", "--output", action='store_true', required=False)
-    parser.add_argument("-o", "--output-file", default="./test.png",
+    parser.add_argument("-o", "--output", default="",
                         required=False)
 
     return parser.parse_args()
 
+
+###############################################################################
+#                                    main                                     #
+###############################################################################
 
 def select_mode(config: Config, data: dict, args: object):
     match args.mode:
@@ -606,8 +644,16 @@ def select_mode(config: Config, data: dict, args: object):
             plot_latency_bias_irradiance(config, data, args)
         case "lib":
             plot_latency_irradiance_bias(config, data, args)
+        case "crb":
+            plot_count_roi_bias(config, data, args)
+        case "cri":
+            plot_count_roi_irradiance(config, data, args)
+        case "cbi":
+            plot_count_bias_irradiance(config, data, args)
+        case "cib":
+            plot_count_irradiance_bias(config, data, args)
         case "map":
-            plot_map(config, data, args)
+            plot_map(config, data, "latency", args)
         case "maproi":
             plot_map_roi(config, data, args)
         case "std":
@@ -626,14 +672,10 @@ def main():
     args = parse_args()
 
     plt.rcParams.update({'font.size': 20})
-    if args.output:
+    if args.output != "":
         plt.rcParams.update({'font.size': 13})
 
-    print("DEBUG: OUTPUT_FLAG= ", args.output, ", OUTPUT_FILE=", args.output_file)
-
-    if args.mode == "mul":
-        plot_multipixel_latency(args)
-        return
+    print("DEBUG: OUTPUT_FILE=", args.output)
 
     config = Config(args.latency_directory)
     data = collect_latency_data(config)
