@@ -69,6 +69,11 @@ void init_camera(Metavision::Camera &cam, EventAnalyzer &event_analyzer,
 
     if (config.window.width > 0 && config.window.height > 0) {
         cam.roi().set(config.window);
+        // fix the roi size
+        event_analyzer.window({.x = config.window.x,
+                               .y = config.window.y,
+                               .width = config.window.width + 1,
+                               .height = config.window.height + 1});
     } else {
         config.window.width = cam.geometry().width();
         config.window.height = cam.geometry().height();

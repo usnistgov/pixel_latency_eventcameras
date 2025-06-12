@@ -92,6 +92,10 @@ size_t insert_infos(EventAnalyzer const &event_analyzer, int16_t polarity,
                     delay_t delay) {
     for (auto point : points) {
         size_t p = event_analyzer.point_1d(point);
+        if (p > event_delays.size()) {
+            ERROR("p > event_delays.size()");
+            continue;
+        }
         if (event_delays[p] == -1) {
             event_delays[p] = delay;
         }
@@ -112,8 +116,7 @@ MeasurementInfos
 get_measurement_infos(EventAnalyzer const &event_analyzer,
                       TriggerAnalyzer const &trigger_analyzer) {
     MeasurementInfos infos(event_analyzer.window(), {});
-    // the ROI size is wrong on the camera...
-    size_t window_size = (infos.roi.width + 1) * (infos.roi.height + 1);
+    size_t window_size = infos.roi.width * infos.roi.height;
     auto events = event_analyzer.events();
     auto triggers = trigger_analyzer.triggers();
     delays_t delays0(window_size);
