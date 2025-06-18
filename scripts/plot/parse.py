@@ -72,6 +72,9 @@ class Stat:
 
 
 def stats_mean(stats: list[Stat]) -> Stat:
+    if len(stats) == 0:
+        return Stat()
+
     mean_latencies = [stat.mean for stat in stats]
     nb0 = [stat.nb0 for stat in stats]
     nb1 = [stat.nb1 for stat in stats]
