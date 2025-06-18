@@ -139,8 +139,8 @@ def collect_latency_data(result_dir, config, data):
                            np.mean(roi_latencies[0]), np.mean(roi_counts[0]))
             point1 = Point(1, irr_values[0], contrast,
                            np.mean(roi_latencies[1]), np.mean(roi_counts[1]))
-            data.append(point0.set_biases_from_list(biases))
-            data.append(point1.set_biases_from_list(biases))
+            data.append((point0.set_biases_from_list(biases),
+                         point1.set_biases_from_list(biases)))
 
 
 def collect_multiple_latency_data(result_dirs, data):
@@ -155,14 +155,27 @@ def collect_multiple_latency_data(result_dirs, data):
 ###############################################################################
 
 
-def is_dominated(point1, point2):
+def latency_count_loss(point1: Point, point2: Point):
     return point2.latency <= point1.latency and \
            point2.event_rate <= point1.event_rate and \
            (point2.latency < point1.latency or \
             point2.event_rate < point1.event_rate)
 
 
-def pareto_optimization(data):
+def latency_diff_loss(point1: tuple[Point, Point], point2: tuple[Point, Point]):
+    latency1 = point1[0].latency + point1[1].latency
+    latency2 = point2[0].latency + point2[1].latency
+
+    latency_diff1 = abs(point1[0].latency - point1[1].latency)
+    latency_diff2 = abs(point2[0].latency - point2[1].latency)
+
+    return latency2 <= latency1 and latency_diff2 <= latency_diff1 and \
+           (latency2 < latency1 or latency_diff2 < latency_diff1)
+
+
+
+
+def pareto_optimization(data, is_dominated):
     """
     The pareto optimization is method for solving optimization problems with a
     multi-objective function. It can be used as a stochastic method, however,
@@ -199,16 +212,23 @@ def main():
 
     collect_multiple_latency_data(result_dirs, data)
 
-    optimals0 = pareto_optimization(list(filter(lambda p: p.polarity == 0, data)))
-    optimals1 = pareto_optimization(list(filter(lambda p: p.polarity == 1, data)))
+    optimals0 = pareto_optimization(list(map(lambda p: p[0], data)), latency_count_loss)
+    optimals1 = pareto_optimization(list(map(lambda p: p[1], data)), latency_count_loss)
+    optimals_diff = pareto_optimization(data, latency_diff_loss)
 
     print("optimal configurations for the polarity 0:")
-    for point in optimals0:
+    for point in filter(lambda p: p.latency < 3_000, optimals0):
         point.print()
 
     print("optimal configurations for the polarity 1:")
-    for point in optimals1:
+    for point in filter(lambda p: p.latency < 3_000, optimals1):
         point.print()
+
+    print("latency diff optimals:")
+    for point in filter(lambda ps: abs(ps[0].latency - ps[1].latency) < 100, optimals_diff):
+        point[0].print()
+        point[1].print()
+        print(f"diff = {abs(point[0].latency - point[1].latency)}")
 
 
 if __name__ == "__main__":
