@@ -47,9 +47,8 @@ def main():
     positions_filename = args.output_directory + "/positions.txt"
 
     # increase font size
-    plt.rcParams.update({"font.size": 20})
+    # plt.rcParams.update({"font.size": 20})
 
-    plot_triggers(triggers_filename)
     if args.program == "plot":
         plot(counts_filename)
     else:
@@ -58,9 +57,15 @@ def main():
         spec = int(program_args[1])
 
         if program == "avg":
+            plot_triggers(triggers_filename)
             average_plot(counts_filename, spec)
         elif program == "pos":
             position_plot(positions_filename, spec)
+            plot_triggers(triggers_filename)
+            ax = plt.gca()
+            # plt.legend()
+            # ax.get_xaxis().get_major_formatter().set_scientific(False)
+            plt.savefig("out.png", dpi=100)
 
 
 # add the trigger lines on the plot
@@ -81,7 +86,7 @@ def make_plot(x, y0, y1, title, xlabel, ylabel):
     plt.title(title, wrap=True)
     plt.plot(x, y0, label="polarity 0")
     plt.plot(x, y1, label="polarity 1")
-    plt.legend()
+    # plt.legend()
     plt.show()
 
 
@@ -126,8 +131,6 @@ def position_plot(filname: str, camera_with: int):
     plt.title(f"event positions and trigger events over time (ROI = {camera_with}x{camera_with})", wrap=True)
     plt.xlabel("time in us (timestamps of the events)")
     plt.ylabel("position of the event (x + y*roi_width)")
-
-    plt.show()
 
 
 # Plot the averaged number of events on the given period size for each timestamp

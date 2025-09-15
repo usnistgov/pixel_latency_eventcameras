@@ -155,7 +155,7 @@ def collect_latency_data(config: Config) -> dict:
 def create_image(args: object):
     if args.output != "":
         figure = plt.gcf()  # get current figure
-        figure.set_size_inches(8, 6)
+        figure.set_size_inches(10, 6)
         print("DEBUG: OUTPUT=", args.output)
         plt.savefig(args.output, dpi=100)
     else:
@@ -183,16 +183,16 @@ def plot_stats(latencies: dict,
         latencies1_stddev = [l1.stddev for l1 in v[1]]
 
         if stddev:
-            ax[0, 0].errorbar(x, latencies0, latencies0_stddev, label=k)
-            ax[1, 0].errorbar(x, latencies1, latencies1_stddev, label=k)
+            ax[0, 0].errorbar(x, latencies0, latencies0_stddev)
+            ax[1, 0].errorbar(x, latencies1, latencies1_stddev)
         else:
-            ax[0, 0].plot(x, latencies0, marker="o", label=k)
-            ax[1, 0].plot(x, latencies1, marker="o", label=k)
+            ax[0, 0].plot(x, latencies0, marker="o")
+            ax[1, 0].plot(x, latencies1, marker="o")
 
-    ax[0, 0].set_title(f"Polarity 0 {title}")
+    ax[0, 0].set_title(f"Polarity 0 {title}", wrap=True)
     ax[0, 0].set_ylabel(ylabel)
 
-    ax[1, 0].set_title(f"Polarity 1 {title}")
+    ax[1, 0].set_title(f"Polarity 1 {title}", wrap=True)
     ax[1, 0].set_xlabel(xlabel)
     ax[1, 0].set_ylabel(ylabel)
 
@@ -211,7 +211,7 @@ def plot_stats(latencies: dict,
     ax[0, 0].grid(True)
     ax[1, 0].grid(True)
 
-    fig.suptitle(suptitle)
+    fig.suptitle(suptitle, wrap=True)
 
 
 ###############################################################################
@@ -307,7 +307,7 @@ def plot_latency_roi_bias(config: Config, data: dict, args: object):
     latencies = get_stat_roi_bias(config, data, "latency", args.irradiance)
     plot_stats(
         latencies, config.bias.keys(), args.stddev,
-        f"Latency for events of polarity 0 and 1 / bias configuration (irradiance = {args.irradiance} W/m2)",
+        f"Latency / bias configuration (irradiance = {args.irradiance} W/m2)",
         "event latency per ROI / bias configurations", "bias configurations",
         "latency (us)", False, args.log_x, args.log_y)
     create_image(args)
@@ -316,9 +316,10 @@ def plot_latency_roi_bias(config: Config, data: dict, args: object):
 def plot_latency_roi_irradiance(config: Config, data: dict, args: object):
     """Plot latency per ROI over irradiance."""
     latencies = get_stat_roi_irradiance(config, data, "latency", args.bias)
+    irrs = list(map(float, config.irradiance))
     plot_stats(
-        latencies, config.irradiance.keys(), args.stddev,
-        f"Latency for events of polarity 0 and 1 / irradiance (bias configuration = {args.bias})",
+        latencies, irrs, args.stddev,
+        f"Latency / irradiance (bias configuration = {args.bias})",
         "event latency per ROI / irradiance", "irradiance (W/m2)",
         "latency (us)", False, args.log_x, args.log_y)
     create_image(args)
@@ -327,11 +328,12 @@ def plot_latency_roi_irradiance(config: Config, data: dict, args: object):
 def plot_latency_bias_irradiance(config: Config, data: dict, args: object):
     """Plot latency per bias config over irradiance."""
     latencies = get_stat_bias_irradiance(config, data, "latency", args.roi)
-    plot_stats(latencies, config.irradiance.keys(), args.stddev,
-               "Latency for bias configurations / irradiance",
-               "latency for bias configurations / irradiance",
+    irrs = list(map(float, config.irradiance))
+    plot_stats(latencies, irrs, args.stddev,
+               "Latency per bias configurations / irradiance",
+               "latency per bias configurations / irradiance",
                "irradiance (W/m2)", "latency (us)", True, args.log_x, args.log_y)
-    plt.legend()
+    # plt.legend().set_visible(False)
     create_image(args)
 
 
@@ -355,7 +357,7 @@ def plot_count_roi_bias(config: Config, data: dict, args: object):
     counts = get_stat_roi_bias(config, data, "count", args.irradiance)
     plot_stats(
         counts, config.bias.keys(), args.stddev,
-        f"Event count for polarity 0 and 1 / bias configuration (irradiance = {args.irradiance} W/m2)",
+        f"Event count / bias configuration (irradiance = {args.irradiance} W/m2)",
         "event count per ROI / bias configurations", "bias configurations",
         "count (us)", False, args.log_x, args.log_y)
     create_image(args)
@@ -366,7 +368,7 @@ def plot_count_roi_irradiance(config: Config, data: dict, args: object):
     counts = get_stat_roi_irradiance(config, data, "count", args.bias)
     plot_stats(
         counts, config.irradiance.keys(), args.stddev,
-        f"Event count for polarity 0 and 1 / irradiance (bias configuration = {args.bias})",
+        f"Event count / irradiance (bias configuration = {args.bias})",
         "event count per ROI / irradiance", "irradiance (W/m2)",
         "count (us)", False, args.log_x, args.log_y)
     create_image(args)
@@ -376,10 +378,10 @@ def plot_count_bias_irradiance(config: Config, data: dict, args: object):
     """Plot event count per bias config over irradiance."""
     counts = get_stat_bias_irradiance(config, data, "count", args.roi)
     plot_stats(counts, config.irradiance.keys(), args.stddev,
-                 "Latency for bias configurations / irradiance",
-                 "count for bias configurations / irradiance",
+                 "Latency per bias configurations / irradiance",
+                 "count per bias configurations / irradiance",
                  "irradiance (W/m2)", "count (us)", True, args.log_x, args.log_y)
-    plt.legend()
+    # plt.legend().set_visible(False)
     create_image(args)
 
 
@@ -405,7 +407,7 @@ def plot_stddev_bias_irr(config: Config, data: dict, args: object):
         stat0, stat1 = data[args.irradiance][args.bias][roi]["latency"]
         stat = stat0 if args.polarity == "0" else stat1
         vals.append(stat.stddev)
-        plt.title(f"Latency Stdev per ROI (polarity {args.polarity})")
+        plt.title(f"Latency Stdev per ROI (polarity {args.polarity})", wrap=True)
 
     plt.plot(vals)
     plt.ylabel("stdev of latency (us)")
@@ -428,12 +430,12 @@ def plot_median_bias_irr(config: Config, data: dict, args: object):
         vals_min.append(stat.min)
         vals_max.append(stat.max)
         vals_median.append(stat.median)
-        plt.title(f"Latency Min/Median/Max per ROI (Polarity {args.polarity})")
+        plt.title(f"Latency Min/Median/Max per ROI (Polarity {args.polarity})", wrap=True)
 
-    plt.plot(vals_min, label="min")
-    plt.plot(vals_max, label="max")
-    plt.plot(vals_median, label="median")
-    plt.legend()
+    plt.plot(vals_min)
+    plt.plot(vals_max)
+    plt.plot(vals_median)
+    # plt.legend().set_visible(False)
     plt.ylabel("min/median/max of latency (us)")
     plt.xlabel("ROI index")
     create_image(args)
@@ -453,11 +455,11 @@ def plot_nbevents_bias_irr(config: Config, data: dict, args: object):
         vals_nb_zero_pol.append(stat.nb0)
         vals_nb_one_pol.append(stat.nb1)
         plt.title(
-            f"Number of 0 & 1 polarity events per ROI between P{args.polarity} triggers")
+            f"Number of 0 & 1 polarity events per ROI between P{args.polarity} triggers", wrap=True)
 
-    plt.plot(vals_nb_zero_pol, label="nb_pol_0")
-    plt.plot(vals_nb_one_pol, label="nb_pol_1")
-    plt.legend()
+    plt.plot(vals_nb_zero_pol)
+    plt.plot(vals_nb_one_pol)
+    # plt.legend().set_visible(False)
     plt.ylabel("number of 0 & 1 polarity events")
     plt.xlabel("ROI index")
     create_image(args)
@@ -481,7 +483,10 @@ def create_map_legend(fig, ax, title, config, vmax):
     cmap = plt.cm.viridis #plt.cm.RdBu
     ax = [ax[r, c] for r in range(len(config.irradiance))
                    for c in range(len(config.bias))]
-    fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax).set_label('Color Map')
+    for sub_ax in ax:
+        sub_ax.set_xticks([])
+        sub_ax.set_yticks([])
+    fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
 
 
 def plot_map(config: Config, data: dict, stat: str, args: object):
@@ -685,7 +690,7 @@ def main():
 
     plt.rcParams.update({'font.size': 20})
     if args.output != "":
-        plt.rcParams.update({'font.size': 13})
+        plt.rcParams.update({'font.size': 14})
 
     print("DEBUG: OUTPUT_FILE=", args.output)
 

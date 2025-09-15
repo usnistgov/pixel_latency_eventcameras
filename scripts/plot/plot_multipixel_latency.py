@@ -27,6 +27,7 @@ import yaml
 import os
 from parse import Stat, parse_latency_file
 
+# ../../plot/plot_multipixel_latency.py CAM1_nolens_roi,CAM2_nolens_roi,CAM3_nolens_roi2 --stddev --logY --polarity=1 -o out.png
 
 def create_image(args: object):
     if args.output != "":
@@ -42,6 +43,8 @@ def collect_multipixel_latency_data(latency_dir: Path, args: object):
     result = dict()
     multi_pixel_latency_files = dict()
 
+    print(f"parse {latency_dir}/config.yaml")
+
     with open(Path(latency_dir) / "config.yaml") as config_file:
         config = yaml.safe_load(config_file)
         multi_pixel_latency_files = config["multi_pixel_latency_files"]
@@ -54,6 +57,8 @@ def collect_multipixel_latency_data(latency_dir: Path, args: object):
         if stats == None:
             continue
         result[int(size)] = stats
+
+    return result
 
 
 def plot_multipixel_latency(args: object):
@@ -80,12 +85,13 @@ def plot_multipixel_latency(args: object):
 
     plt.ylabel("latency (us)")
     plt.xlabel("nb pixels")
-    plt.legend()
+    # plt.legend()
     plt.title("Latency over ROI sizes")
     if args.logX:
         plt.xscale("log")
     if args.logY:
         plt.yscale("log")
+    plt.legend()
     create_image(args)
 
 
