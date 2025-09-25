@@ -32,7 +32,7 @@ from parse import Stat, parse_latency_file
 def create_image(args: object):
     if args.output != "":
         figure = plt.gcf()  # get current figure
-        figure.set_size_inches(8, 6)
+        figure.set_size_inches(16, 6)
         print("DEBUG: OUTPUT=", args.output)
         plt.savefig(args.output, dpi=100)
     else:
@@ -65,6 +65,7 @@ def plot_multipixel_latency(args: object):
     polarity = int(args.polarity)
     latency_directories = args.latency_directory.split(",")
     results = dict()
+    fig, (ax0, ax1) = plt.subplots(1, 2)
 
     for idx, latency_dir in enumerate(latency_directories):
         result = {}
@@ -72,26 +73,39 @@ def plot_multipixel_latency(args: object):
 
     for cam in results.keys():
         result = results[cam]
-        values = [latency[polarity].mean for latency in result.values()]
+        values0 = [latency[0].mean for latency in result.values()]
+        values1 = [latency[1].mean for latency in result.values()]
         # coef = np.polyfit(list(result.keys()), values, 1)
         # poly1d = np.poly1d(coef)
-        std = [latency[polarity].stddev for latency in result.values()]
-        print(values)
+        std0 = [latency[0].stddev for latency in result.values()]
+        std1 = [latency[1].stddev for latency in result.values()]
         if args.stddev:
-            plt.errorbar(result.keys(), values, std, label=cam)
+            ax0.errorbar(result.keys(), values0, std0, label=cam)
+            ax1.errorbar(result.keys(), values1, std1, label=cam)
         else:
             x = list(result.keys())
-            plt.plot(x, values, label=cam)
+            ax0.plot(x, values0, label=cam)
+            ax1.plot(x, values1, label=cam)
 
-    plt.ylabel("latency (us)")
-    plt.xlabel("nb pixels")
-    # plt.legend()
-    plt.title("Latency over ROI sizes")
+    ax0.set_ylabel("latency (us)")
+    ax0.set_xlabel("nb pixels")
+    ax1.set_xlabel("nb pixels")
+    ax0.set_title("polarity 0")
+    ax1.set_title("polarity 1")
+    fig.suptitle("Latency over ROI sizes")
     if args.logX:
-        plt.xscale("log")
+        ax0.set_xscale("log")
+        ax1.set_xscale("log")
     if args.logY:
-        plt.yscale("log")
-    plt.legend()
+        ax0.set_yscale("log")
+        ax1.set_yscale("log")
+    ax0.legend()
+    ax1.legend()
+    ylim0 = ax0.get_ylim()
+    ylim1 = ax1.get_ylim()
+    ylim = (min(ylim0[0], ylim1[0]), max(ylim0[1], ylim1[1]))
+    ax0.set_ylim(ylim)
+    ax1.set_ylim(ylim)
     create_image(args)
 
 
