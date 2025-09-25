@@ -43,6 +43,7 @@ for param in ${PARAM_CONFIGS[@]}; do
             $PLOT_LATENCY_PROGRAM $INPUT_DIR \
             --mode lri \
             --bias ${param} \
+            --log-y \
             -o $OUTPUT_FILE
 done
 #############################################
@@ -58,6 +59,7 @@ OUTPUT_FILE="${OUTPUT_DIR}/latency_per_bias_forROI_${param}.png"
             --mode lbi \
             --roi ${param} \
             --stddev  \
+            --log-y \
             -o $OUTPUT_FILE
 done
 #################################################
@@ -66,6 +68,7 @@ OUTPUT_FILE="${OUTPUT_DIR}/avg_latency_allBias_per_irr.png"
 $PLOT_LATENCY_PROGRAM $INPUT_DIR \
             --mode lib \
             --stddev  \
+            --log-y \
             -o $OUTPUT_FILE \
 
 
