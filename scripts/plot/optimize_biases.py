@@ -18,6 +18,8 @@ class Point:
                  contrast = 0,
                  latency = 0,
                  event_rate = 0,
+                 signal = 0,
+                 noise = 0,
                  bias_diff = 0,
                  bias_diff_off = 0,
                  bias_diff_on = 0,
@@ -29,6 +31,8 @@ class Point:
         self.contrast = contrast
         self.latency = latency
         self.event_rate = event_rate
+        self.signal = signal
+        self.noise = noise
         self.bias_diff = bias_diff
         self.bias_diff_off = bias_diff_off
         self.bias_diff_on = bias_diff_on
@@ -59,25 +63,14 @@ class Point:
             self.bias_refr,
             self.contrast,
             self.latency,
-            self.event_rate
+            self.event_rate,
+            self.signal,
+            self.noise,
         ])
 
 
     def print(self):
-        print(f"""
-              point:
-                   polarity = {self.polarity}
-                   irradiance = {self.irradiance}
-                   contrast = {self.contrast}
-                   latency = {self.latency}
-                   event_rate = {self.event_rate}
-                   bias_diff = {self.bias_diff}
-                   bias_diff_off = {self.bias_diff_off}
-                   bias_diff_on = {self.bias_diff_on}
-                   bias_fo = {self.bias_fo}
-                   bias_hpf = {self.bias_hpf}
-                   bias_refr = {self.bias_refr}
-              """)
+        print(f"""point[{self.polarity}]: [ irradiance = {self.irradiance:6.3f}, contrast = {self.contrast:4.2f}, latency = {self.latency:10.2f}, event_rate = {self.event_rate:6.2f}, signal = {self.signal:10.2f}, noise = {self.noise:10.2f}, bias = [ bias_diff = {self.bias_diff:3}, bias_diff_off = {self.bias_diff_off:3}, bias_diff_on = {self.bias_diff_on:3}, bias_fo = {self.bias_fo:3}, bias_hpf = {self.bias_hpf:3}, bias_refr = {self.bias_refr:3} ]]""")
 
 
 ###############################################################################
@@ -90,7 +83,9 @@ def parse_result_files(output_directory):
     count_stat0, count_stat1 = parse.parse_count_file(output_directory / "count.txt")
     latencies = (latency_stat0.mean, latency_stat1.mean)
     counts = (count_stat0.mean, count_stat1.mean)
-    return latencies, counts
+    signal = (latency_stat0.nb0, latency_stat1.nb1)
+    noise = (latency_stat0.nb1, latency_stat1.nb0)
+    return latencies, counts, signal, noise
 
 
 def get_irradiance_values(config):
@@ -113,32 +108,40 @@ def collect_roi_data(config, result_dir, irr_dir, bias_dir):
     roi_config = config["roi_directories_names"]
     roi_latencies = ([], [])
     roi_counts = ([], [])
+    roi_signal = ([], [])
+    roi_noise = ([], [])
 
     for roi_dir in roi_config:
         dir = result_dir / irr_dir / bias_dir / roi_dir
-        latencies, counts = parse_result_files(dir)
+        latencies, counts, signal, noise = parse_result_files(dir)
         roi_latencies[0].append(latencies[0])
         roi_latencies[1].append(latencies[1])
         roi_counts[0].append(counts[0])
         roi_counts[1].append(counts[1])
+        roi_signal[0].append(signal[0])
+        roi_signal[1].append(signal[1])
+        roi_noise[0].append(noise[0])
+        roi_noise[1].append(noise[1])
 
-    return roi_latencies, roi_counts
+    return roi_latencies, roi_counts, roi_signal, roi_noise
 
 
 def collect_latency_data(result_dir, config, data):
     # TODO: we need one axis per bias
     for irr_dir, irr_values in get_irradiance_values(config):
         for bias_dir, biases in get_biases_values(config):
-            roi_latencies, roi_counts = collect_roi_data(config, result_dir,
-                                                         irr_dir, bias_dir)
+            roi_latencies, roi_counts, roi_signal, roi_noise = collect_roi_data(config, result_dir,
+                                                                                irr_dir, bias_dir)
             contrast = 100
             if len(irr_values) == 2:
                 contrast = irr_values[1] / irr_values[0]
 
             point0 = Point(0, irr_values[0], contrast,
-                           np.mean(roi_latencies[0]), np.mean(roi_counts[0]))
+                           np.mean(roi_latencies[0]), np.mean(roi_counts[0]),
+                           np.mean(roi_signal[0]), np.mean(roi_noise[0]))
             point1 = Point(1, irr_values[0], contrast,
-                           np.mean(roi_latencies[1]), np.mean(roi_counts[1]))
+                           np.mean(roi_latencies[1]), np.mean(roi_counts[1]),
+                           np.mean(roi_signal[1]), np.mean(roi_noise[1]))
             data.append((point0.set_biases_from_list(biases),
                          point1.set_biases_from_list(biases)))
 
@@ -154,25 +157,44 @@ def collect_multiple_latency_data(result_dirs, data):
 #                             pareto optimization                             #
 ###############################################################################
 
-
-def latency_count_loss(point1: Point, point2: Point):
-    return point2.latency <= point1.latency and \
-           point2.event_rate <= point1.event_rate and \
-           (point2.latency < point1.latency or \
-            point2.event_rate < point1.event_rate)
-
-
-def latency_diff_loss(point1: tuple[Point, Point], point2: tuple[Point, Point]):
+def latency_tail_snr_loss(point1: tuple[Point, Point], point2: tuple[Point, Point]):
     latency1 = point1[0].latency + point1[1].latency
     latency2 = point2[0].latency + point2[1].latency
-
     latency_diff1 = abs(point1[0].latency - point1[1].latency)
     latency_diff2 = abs(point2[0].latency - point2[1].latency)
+    signal1 = point1[0].signal + point1[1].signal
+    signal2 = point2[0].signal + point2[1].signal
+    noise1 = point1[0].noise + point1[1].noise
+    noise2 = point2[0].noise + point2[1].noise
 
-    return latency2 <= latency1 and latency_diff2 <= latency_diff1 and \
-           (latency2 < latency1 or latency_diff2 < latency_diff1)
+    cnd = latency2 <= latency1 \
+            and latency_diff2 <= latency_diff1 \
+            and signal2 >= signal1 \
+            and noise2 <= noise1
+    cnd_strict = latency2 < latency1 \
+            or latency_diff2 < latency_diff1 \
+            or signal2 > signal1 \
+            or noise2 < noise1 \
+
+    return cnd and cnd_strict
 
 
+def latency_snr_pol1_loss(point1: tuple[Point, Point], point2: tuple[Point, Point]):
+    latency1 = point1[1].latency
+    latency2 = point2[1].latency
+    signal1 = point1[1].signal
+    signal2 = point2[1].signal
+    noise1 = point1[1].noise
+    noise2 = point2[1].noise
+
+    cnd = latency2 <= latency1 \
+            and signal2 >= signal1 \
+            and noise2 <= noise1
+    cnd_strict = latency2 < latency1 \
+            or signal2 > signal1 \
+            or noise2 < noise1 \
+
+    return cnd and cnd_strict
 
 
 def pareto_optimization(data, is_dominated):
@@ -212,20 +234,18 @@ def main():
 
     collect_multiple_latency_data(result_dirs, data)
 
-    optimals0 = pareto_optimization(list(map(lambda p: p[0], data)), latency_count_loss)
-    optimals1 = pareto_optimization(list(map(lambda p: p[1], data)), latency_count_loss)
-    optimals_diff = pareto_optimization(data, latency_diff_loss)
+    # optimals_diff = pareto_optimization(data, latency_tail_loss)
+    optimals_all = pareto_optimization(data, latency_tail_snr_loss)
+    optimals_p1 = pareto_optimization(data, latency_snr_pol1_loss)
 
-    print("optimal configurations for the polarity 0:")
-    for point in filter(lambda p: p.latency < 3_000, optimals0):
-        point.print()
+    print("latency tail snr:")
+    for point in filter(lambda ps: ps[0].signal > ps[0].noise and ps[1].signal > ps[1].noise, optimals_all):
+        point[0].print()
+        point[1].print()
+        print(f"diff = {abs(point[0].latency - point[1].latency)}")
 
-    print("optimal configurations for the polarity 1:")
-    for point in filter(lambda p: p.latency < 3_000, optimals1):
-        point.print()
-
-    print("latency diff optimals:")
-    for point in filter(lambda ps: abs(ps[0].latency - ps[1].latency) < 100, optimals_diff):
+    print("latency snr polarity 1:")
+    for point in filter(lambda ps: ps[0].signal > ps[0].noise and ps[1].signal > ps[1].noise, optimals_all):
         point[0].print()
         point[1].print()
         print(f"diff = {abs(point[0].latency - point[1].latency)}")
